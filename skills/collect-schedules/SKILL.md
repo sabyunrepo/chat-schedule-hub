@@ -16,11 +16,11 @@ description: 모아 일정 허브에 카카오톡 UI, Discord 봇, Gmail·네이
 
 ## 카카오톡 관찰과 재개
 
-1. `python3 -m hub.cli sources`로 경로를 확인한다. `register`에는 계정 범위 target, adapter, connection, label, config:{since,until}를 JSON stdin으로 전달한다. `begin`의 cursor/seen/baseline으로 미완료 구간을 먼저 재개한다.
+1. [이어 읽기 절차](../../docs/KAKAO_INCREMENTAL.md)를 읽고 실제 카카오톡 DB를 HUB_DB로 지정한다. `kakao-scan-start` → 컴퓨터 유즈 최신 화면 → `kakao-scan-step` 루프를 사용한다. 일반 `begin`의 hostObservationOnly를 실제 재개 지점으로 취급하지 않는다.
 2. 조용한 채팅방 보관함과 최근 지정 기간 비활동 방을 본문/모델 처리 전에 제외한다. 상태 미확인은 비활동으로 단정하지 않는다. 일반방·오픈채팅 목록의 가상 스크롤을 처리한다.
-3. 실제 방 이름을 확인하고 전체 AX 관찰 두 개를 `kakao-observe`로 전달한다. 표시 인덱스·읽지 않은 인원은 메시지 ID가 아니다. 카드 안 모임 시각을 발언 시각으로 쓰지 않는다. 날짜 구분선과 날짜별 기존 앵커를 함께 사용한다.
+3. 실제 방 이름을 확인하고 독립 관찰 두 개를 로컬에서 검토한 뒤 `kakao-scan-step`으로 전달한다. 허용되지 않은 본문은 전송하지 않고 None 간격을 유지한다. 표시 인덱스·읽지 않은 인원은 메시지 ID가 아니다. 카드 안 모임 시각을 발언 시각으로 쓰지 않는다.
 4. 한 명만 GUI를 조작한다. 요소 스크롤 실패 시 최신 화면에서 확인한 좌표로 복구하고, 실제 화면 변화와 저장 결과를 확인한다. 무변화·창 이동·로그인·복원 대기·권한 오류는 완료 증거가 아니다.
-5. 화면을 겹쳐 관찰한다. 원본 ID가 없으면 검증된 occurrenceKey만 사용하고, 같은 짧은 문구 하나로 중단하지 않는다. 이전 저장 위치에 도달해도 중간 공백이 있으면 먼저 메운다.
+5. 반환 action을 실행한다. scroll-older는 연속 3행 이상을 겹쳐 과거 방향으로 이동, restart-latest는 start부터 최신 화면 재방문, stop은 종료다. seeking 중 모델 호출 없이 기존 frontier를 찾는다. 공백·정체·anchor-lost를 완료로 바꾸지 않는다.
 6. 기본 저장은 최대 32개 `select-ingest`. 외부 처리 승인 범위만 Decisions에 보낸다. 실패 시 해당 구간 체크포인트를 전진시키지 않는다. `requested-range-reached`는 날짜 경계의 실제 증거가 있을 때만 사용한다.
 
 ## 선별·일정 반영

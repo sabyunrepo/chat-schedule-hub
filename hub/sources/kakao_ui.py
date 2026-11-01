@@ -41,7 +41,12 @@ def parse_window(state):
             include_continuation=True
             text.append(line)
         if text:
-            rows.append({'text':'\n'.join(text),'sentAt':sent,'authorRef':None})
+            row={'text':'\n'.join(text),'sentAt':sent,'authorRef':None}
+            if date:
+                author=block[date.end():].split('\n',1)[0].strip()
+                if author and not re.search(r'일정 확인하기|참석여부 응답하기|일정이 (?:취소|변경)|님의 글을 공유',author):
+                    row['authorDisplayName']=author
+            rows.append(row)
     bar=re.search(r'스크롤 막대 \(settable, float\) ([\d.]+)',state)
     return {'title':title[1],'rows':rows,'scrollPosition':float(bar[1]) if bar else None}
 

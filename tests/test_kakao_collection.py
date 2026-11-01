@@ -13,7 +13,7 @@ class KakaoPolicyTests(unittest.TestCase):
         store=Store(':memory:')
         args=dict(store=store,target='t',label='test',latest='2026-11-01T00:00:00+09:00',quiet=False,
                   since='2026-10-02T00:00:00+09:00',until='2026-11-02T00:00:00+09:00',provider=Provider())
-        def rows(prefix):return [{'text':prefix+str(i),'sentAt':'2026-11-01T00:00:00+09:00','authorRef':None} for i in range(3)]
+        def rows(prefix):return [{'text':prefix+str(i),'sentAt':'2026-11-01T00:00:00+09:00','authorRef':None,'authorDisplayName':'synthetic','reviewedSchedule':True} for i in range(3)]
         first=rows('first');second=rows('second')
         collect(**args,observations=[first,first])
         collect(**args,observations=[second,second])
