@@ -1,6 +1,6 @@
 # 모아 · Chat Schedule Hub
 
-0.3.2 개발 미리보기: 레코드 증분 동기화와 Dot 실행 안내를 포함합니다. Gmail·네이버·Google Calendar 연결 파일럿과 연결 전용 스킬을 추가했습니다. [변경 이력](CHANGELOG.md)을 참고하세요. 기존 0.1.1에서는 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
+0.3.3 개발 미리보기: 레코드 증분 동기화와 Dot 실행 안내를 포함합니다. Gmail·네이버·Google Calendar 연결 파일럿과 연결 전용 스킬을 추가했습니다. [변경 이력](CHANGELOG.md)을 참고하세요. 기존 0.1.1에서는 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
 
 대화에서 일정을 정리하는 Codex 플러그인과 개인 일정 조회용 웹앱입니다. 현재 개발 미리보기입니다.
 
@@ -29,7 +29,7 @@ Codex 플러그인의 `skills/collect-schedules/SKILL.md`를 실행 지침으로
 
 [최종 계획](PLAN.md), [프로젝트 지침](AGENTS.md), [수집 어댑터 계약](docs/SOURCE_ADAPTER_CONTRACT.md)을 기준으로 구현합니다. 새 수집 경로 추가 스킬은 `skills/add-collection-source/`에 있습니다.
 
-현재 Python 테스트 83개를 통과했습니다. 웹앱은 이번 변경 대상이 아니며 이전 TypeScript 검사·빌드 결과와 구분합니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
+현재 Python 테스트 88개를 통과했습니다. 웹앱은 이번 변경 대상이 아니며 이전 TypeScript 검사·빌드 결과와 구분합니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
 
 공개 저장소와 개인 사이트의 공개 범위는 별개입니다. 샘플은 합성 데이터입니다. 배포 조건과 제3자 라이선스는 [LICENSE.md](LICENSE.md)를 확인하세요.
 
@@ -42,3 +42,5 @@ Codex 플러그인의 `skills/collect-schedules/SKILL.md`를 실행 지침으로
 ## 증분 동기화와 Dot
 
 [증분 동기화](docs/INCREMENTAL_SYNC.md)는 변경된 레코드만 보내며 변경이 없으면 전송하지 않습니다. [Dot 원격 실행 안내](docs/DOT_REMOTE_COLLECTION.md)는 연결 조건과 실제 검증 절차를 설명합니다. Dot 계정 연결과 예약 실행은 미검증입니다.
+
+Dot/로컬 Codex용 [update-schedules 스킬](skills/update-schedules/SKILL.md)과 `python3 -m hub.update status|materialize|sync`를 제공합니다. 업데이트 작업 잠금, 기존 DB만 접근, 실패한 변경분 보존을 적용했습니다. 새 수집과 자유형 추출 완료를 뜻하지 않습니다.

@@ -1,6 +1,6 @@
 {
   "name": "chat-schedule-hub",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "카카오톡·Discord·메일·Google Calendar에서 일정 근거를 수집하는 데스크톱 플러그인. 메일·캘린더는 제한 파일럿 지원.",
   "skills": "./skills/",
   "requires_local_executor": true

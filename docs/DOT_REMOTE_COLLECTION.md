@@ -28,3 +28,21 @@ Dot은 자체 클라우드 컴퓨터가 있다. ChatGPT 데스크톱 앱에서 D
 5. 그 다음 예약 실행. 이 문서 작성 시 예약·권한 변경은 수행하지 않았다.
 
 공식 근거: [Dot 시작하기](https://help.openai.com/en/articles/20001530-getting-started-with-your-dot), [Dot 권한과 안전](https://help.openai.com/en/articles/20001529-dots-privacy-security-and-safety-faqs). 제품 지원과 실제 사용자 계정 활성화는 별개다.
+
+## 실행 가능한 업데이트 스킬 (0.3.3)
+
+[update-schedules](../skills/update-schedules/SKILL.md)를 플러그인에 포함했다. 별도 MCP 등록 없이 연결된 Mac의 로컬 실행 능력을 사용하는 경로다. 이 업데이트는 Dot의 계정 권한이나 전역 설정을 바꾸지 않는다.
+
+```sh
+python3 -m hub.update status
+python3 -m hub.update materialize
+```
+
+`~/Library/Application Support/ChatScheduleHub/update.json`에는 `{"siteOrigin":"https://YOUR-PRIVATE-SITE"}`만 설정한다. `site-sync.key`는 권한 600으로 별도 보관한다. `sync` 명령은 Sites 도구에서 받은 접근 토큰을 JSON stdin의 `siteAccessToken`으로 읽는다. 토큰을 붙여 넣는 셸 명령이나 파일을 만들지 않는다. 접근 토큰 획득 도구가 없는 호스트에서는 동기화 단계가 차단될 수 있다.
+
+Dot 요청 예시:
+> 연결된 Mac의 모아 플러그인에서 update-schedules 스킬을 사용해 상태를 확인하고 저장된 일정 변경분을 내 사이트에 반영해. 실제 전송과 남은 미분석을 구분해 알려줘.
+
+이 명령은 신규 수집·일반 대화 추출을 자동 완료하지 않는다. 새 수집은 collect-schedules로 연결한다. 현재 추가 카카오톡 순회는 중단 상태다. 업데이트 명령끼리는 같은 OS 잠금을 사용하지만 Gateway 수집기는 SQLite 트랜잭션으로 병행한다. 프로세스 종료 시 잠금은 해제되며 잠금 파일을 삭제하지 않는다.
+
+검증: 합성 잠금 충돌/실패 해제/미설정 소스/토큰 누락 테스트와 실제 DB 상태 조회·로컬 반영 2회 성공. 두 차례 모두 신규 반영 0건. 동기화 명령도 실제 3개 DB에서 성공했으며 변경 없음으로 HTTP 요청·전송 각각 0건이었다. 이 결과는 새로운 인증이나 실제 전송의 검증은 아니다. 실제 Dot에서 스킬을 찾아 실행하는 수용 검증은 미완료다.
