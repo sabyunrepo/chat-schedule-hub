@@ -11,7 +11,7 @@ description: Dot 또는 Codex의 연결된 로컬 Mac에서 모아 일정 상태
 2. `python3 -m hub.update status`로 기존 DB별 일정·미분석·미전송 건수를 확인한다. 원문이나 비밀값을 출력하지 않는다. 미전송 버전 수는 변경된 일정 개수와 다를 수 있다.
 3. 새 수집이 요청되면 [수집 스킬](../collect-schedules/SKILL.md)로 라우팅한다. 이 업데이트 명령 자체는 원격 소스를 수집하지 않는다. Discord 상시 봇을 중복 실행하지 않는다. 카카오톡 중단 상태에서 UI 순회를 재개하지 않는다.
 4. `python3 -m hub.update materialize`로 저장된 명시적 카카오톡 카드와 Calendar 알림 메일 근거를 반영한다. `--source kakao` 또는 `--source mail-calendar`로 범위를 줄일 수 있다. 자유형 대화 추출은 별도이며 미분석 건수를 성공 처리하지 않는다. 기존 제외 정책을 유지한다.
-5. 사이트 반영 요청에서는 로컬 앱 데이터의 `update.json`에 저장된 `siteOrigin`이 사용자 개인 사이트인지 확인한다. 연결 키는 같은 디렉터리의 소유자 전용 `site-sync.key`를 사용한다. Sites 도구로 현재 접근 권한을 확인한 뒤 짧은 수명 접근 토큰을 세션 메모리에서 JSON stdin의 `siteAccessToken`으로 `python3 -m hub.update sync`에 전달한다. 토큰을 명령 인자·임시 파일·대화·로그에 넣지 않는다. Sites 도구가 없으면 로컬 반영과 미전송 상태를 보고하며 동기화 완료라 하지 않는다.
+5. 사이트 반영 요청에서는 로컬 앱 데이터의 `update.json`에 저장된 `siteOrigin`이 사용자 개인 사이트인지 확인한다. 연결 키는 같은 디렉터리의 소유자 전용 `site-sync.key`를 사용한다. Sites 도구로 현재 접근 권한을 확인한 뒤 사이트 서비스 접근 토큰을 세션 메모리에서 JSON stdin의 `siteAccessToken`으로 `python3 -m hub.update sync`에 전달한다. 토큰을 명령 인자·임시 파일·대화·로그에 넣지 않는다. Sites 도구가 없으면 로컬 반영과 미전송 상태를 보고하며 동기화 완료라 하지 않는다.
 6. 동기화를 한 번 더 실행해 변경 없음이면 전송 0건인지 확인한다. 실패 시 기존 pending 요청을 보존하고 해당 단계만 재시도한다. 잠금 충돌이면 기존 작업을 기다린 후 상태를 확인한다. 잠금 파일 삭제로 우회하지 않는다.
 
 결과는 수집 여부, 로컬 반영, 실제 전송, 남은 미분석·실패를 구분해서 보고한다. 이 스킬을 설치했다는 사실만으로 Dot 연결·예약 실행·무인 알림이 완성됐다고 말하지 않는다. 수동 업데이트 프로세스끼리는 OS 잠금으로 직렬화된다. Discord Gateway는 별도 프로세스이며 SQLite 트랜잭션을 사용한다.
@@ -19,3 +19,9 @@ description: Dot 또는 Codex의 연결된 로컬 Mac에서 모아 일정 상태
 ## 자동 파이프라인
 
 새 데이터 갱신 요청에는 [0.4.0 실행 상태](../../docs/AUTOMATION_040.md)를 먼저 확인하고 `python -m hub.pipeline`을 사용한다. 기존 주기 작업과 같은 잠금을 공유한다. `extractionEnabled=false`이면 인증 오류로 보류 중일 수 있으므로 임의 활성화하지 않는다. Sites 토큰이 있는 세션에서는 `--site-token-stdin`으로 수집부터 변경분 전송까지 연결한다. 일반 status/materialize/sync 명령도 유지한다.
+
+## 원격 MCP와 무인 전송 (0.4.1)
+
+최신 연결 방법은 [0.4.1 운영 안내](../../docs/AUTOMATION_041.md)를 따른다. 로컬 Mac은 `siteAccess: macos-keychain`으로 세션 토큰 전달 없이 `hub.pipeline`을 실행할 수 있다. 키체인 조회 실패 시 잠금을 해제하거나 자격 증명을 출력하지 말고 미전송 상태를 보고한다.
+
+사이트 플러그인이 연결된 Dot/ChatGPT에서는 `schedule_status`와 `schedule_list`로 현황을 확인하고 `schedule_attention`으로 검토 후보를 조회한다. `schedule_apply_delta`는 승인된 수집기의 v2 배치만 받는다. installationId/sequence를 새로 꾸미거나 전체 데이터를 다시 만들지 않는다. 이 도구가 로컬 수집 실행 권한을 제공한다고 설명하지 않는다. 도구가 나타나지 않으면 Sites의 MCP 연결 정보에 있는 개인 플러그인 Install/Connect를 안내한다.

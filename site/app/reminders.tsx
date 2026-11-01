@@ -1,17 +1,26 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
-import type {Attention} from '../lib/attention';
+import {useEffect,useState} from 'react';
 export function Reminders(){
- const [enabled,setEnabled]=useState(false),[message,setMessage]=useState(''),seen=useRef(new Set<string>());
- useEffect(()=>{if(!enabled)return;let alive=true;
- async function check(){try{const response=await fetch('/api/attention',{cache:'no-store'});if(!response.ok)return;const data=await response.json() as {items:Attention[];actions:{id:string;state:string;revision:string}[]};
- const fresh=data.items.filter(i=>['change','reminder','overlap'].includes(i.type)&&!data.actions.some(a=>a.id===i.id&&a.revision===i.revision&&a.state!=='open')).filter(i=>!seen.current.has(i.id+':'+i.revision+':'+i.reason));
- if(!alive||!fresh.length)return;
- for(const item of fresh)seen.current.add(item.id+':'+item.revision+':'+item.reason);
- const registration=await navigator.serviceWorker.ready;
- await registration.showNotification('모아 · 확인할 일정 '+fresh.length+'개',{body:fresh.slice(0,2).map(i=>i.title+' · '+i.reason).join('\n'),tag:'moa-schedule-update'});
- }catch{if(alive)setMessage('알림 실패')}}
- check();const timer=setInterval(check,60000);return()=>{alive=false;clearInterval(timer)}},[enabled]);
- async function enable(){if(!('Notification'in window)||!('serviceWorker'in navigator)){setMessage('이 기기에서는 알림 미지원');return;}const permission=await Notification.requestPermission();if(permission==='granted'){setEnabled(true);setMessage('');}else setMessage('알림 권한 없음');}
- return <><button className="secondary" onClick={()=>enabled?setEnabled(false):enable()}>{enabled?'앱 열림 알림 끄기':'앱 열림 알림 켜기'}</button>{message&&<small role="status">{message}</small>}</>
+ const [enabled,setEnabled]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{if('serviceWorker'in navigator)navigator.serviceWorker.ready.then(r=>r.pushManager?.getSubscription()).then(s=>setEnabled(!!s)).catch(()=>{});},[]);
+ async function toggle(){
+  if(!('Notification'in window)||!('serviceWorker'in navigator)||!('PushManager'in window)){setMessage('홈 화면에 설치한 앱 또는 푸시 지원 브라우저에서 켜주세요.');return;}
+  setBusy(true);setMessage('');
+  try{
+   // Request permission from this explicit click, before other async operations (Safari).
+   if(!enabled&&await Notification.requestPermission()!=='granted')throw Error('알림 권한이 필요합니다.');
+   const registration=await navigator.serviceWorker.ready;let sub=await registration.pushManager.getSubscription();
+   if(enabled&&sub){
+    const r=await fetch('/api/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',subscription:sub.toJSON()})});
+    if(!r.ok)throw Error('알림 해제 실패');await sub.unsubscribe();setEnabled(false);return;
+   }
+   const r=await fetch('/api/push',{cache:'no-store'});if(!r.ok)throw Error('로그인을 확인해주세요.');const {publicKey}=await r.json() as {publicKey:string|null};
+   if(!publicKey)throw Error('수집기 알림 연결이 필요합니다.');
+   const bytes=Uint8Array.from(atob(publicKey.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+   sub=sub??await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});
+   const saved=await fetch('/api/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub.toJSON(),publicKey})});
+   if(!saved.ok)throw Error('알림 연결 저장 실패');setEnabled(true);setMessage('수집기가 실행 중일 때 최대 15분 간격으로 전달됩니다.');
+  }catch(e){setMessage(e instanceof Error?e.message:'알림 연결 실패');}finally{setBusy(false)}
+ }
+ return <><button className="secondary" disabled={busy} onClick={toggle}>{busy?'연결 중':enabled?'푸시 알림 끄기':'푸시 알림 켜기'}</button>{message&&<small role="status">{message}</small>}</>
 }

@@ -19,6 +19,13 @@ def cycle(root=ROOT, site_token=None):
     if config.get('externalProcessingAllowed') is not True:raise ValueError('external processing not configured')
     report={}
     with update_lock(root):
+        if not site_token and config.get('siteAccess')=='macos-keychain':
+            from .site_access import service_token
+            try:
+                destination=json.loads((root/'update.json').read_text())['siteOrigin']
+                site_token=service_token(destination)
+            except Exception as exc:
+                report['siteAccess']={'state':'unavailable','errorType':type(exc).__name__}
         provider=extractors.create(config.get('extractionProvider','openai-responses'),model=config.get('extractionModel'))
         api=None
         for name in config['sources']:
@@ -55,6 +62,10 @@ def cycle(root=ROOT, site_token=None):
                 else:item['sync']={'state':'awaiting_site_access','pendingRetained':True}
             except Exception as exc:report[name]={'errorType':type(exc).__name__}
             finally:store.db.close()
+        if site_token and config.get('pushEnabled'):
+            from .push import cycle as push_cycle
+            try:report['push']=push_cycle(root,destination,site_token)
+            except Exception as exc:report['push']={'errorType':type(exc).__name__}
     private_write(root/'pipeline-report.json',json.dumps(report,ensure_ascii=False))
     return report
 

@@ -22,6 +22,13 @@
       "when": 1793511255942,
       "tag": "0002_special_red_wolf",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793512922559,
+      "tag": "0003_long_sebastian_shaw",
+      "breakpoints": true
     }
   ]
 }

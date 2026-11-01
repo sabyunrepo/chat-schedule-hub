@@ -26,3 +26,10 @@ class ExtractionTests(unittest.TestCase):
   s,p=self.fixture();target=s.db.execute('SELECT id FROM targets').fetchone()[0]
   with s.db:s.db.execute('INSERT INTO source_event_policy VALUES(?,1,?)',(target,'excluded'))
   self.assertEqual(process(s,p)['modelCalls'],0)
+ def test_dedicated_credential_precedes_general_key(self):
+  from unittest.mock import patch
+  import json,io
+  from hub.extraction import OpenAIExtraction
+  with patch.dict('os.environ',{'HUB_EXTRACTION_API_KEY':'dedicated-fixture','OPENAI_API_KEY':'general-fixture'}),patch('urllib.request.urlopen',return_value=io.BytesIO(b'{}')) as request:
+   OpenAIExtraction().request({})
+   self.assertEqual(request.call_args.args[0].get_header('Authorization'),'Bearer dedicated-fixture')

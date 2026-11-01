@@ -17,4 +17,4 @@ if path.exists():
 path.parent.mkdir(parents=True,exist_ok=True)
 path.write_bytes(plistlib.dumps({'Label':label,'ProgramArguments':[str(python),'-m','hub.pipeline'],'WorkingDirectory':str(repo),'RunAtLoad':False,'StartInterval':900,'ProcessType':'Background','StandardOutPath':str(root/'pipeline-worker.log'),'StandardErrorPath':str(root/'pipeline-worker-error.log')}));path.chmod(0o600)
 subprocess.run(['launchctl','bootstrap',f'gui/{os.getuid()}',str(path)],check=True)
-print('Pipeline scheduled every 15 minutes; site delivery requires a live Sites access token.')
+print('Pipeline scheduled every 15 minutes; enable macos-keychain in pipeline.json for unattended delivery.')

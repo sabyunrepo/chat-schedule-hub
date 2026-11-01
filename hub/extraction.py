@@ -19,7 +19,11 @@ class OpenAIExtraction:
         self.model=model or os.environ.get('HUB_EXTRACTION_MODEL','gpt-4.1-mini')
         self.transport=transport or self.request
     def request(self, body):
-        key=os.environ.get('OPENAI_API_KEY') or secret(os.environ.get('OPENAI_API_KEY_FILE',ROOT/'openai.key'))
+        dedicated=ROOT/'openai-extraction.key'
+        key=os.environ.get('HUB_EXTRACTION_API_KEY') or (
+            secret(os.environ['HUB_EXTRACTION_API_KEY_FILE']) if os.environ.get('HUB_EXTRACTION_API_KEY_FILE') else
+            secret(dedicated) if dedicated.exists() else
+            os.environ.get('OPENAI_API_KEY') or secret(os.environ.get('OPENAI_API_KEY_FILE',ROOT/'openai.key')))
         request=urllib.request.Request('https://api.openai.com/v1/responses',data=json.dumps(body).encode(),headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'})
         with urllib.request.urlopen(request,timeout=60) as response: return json.load(response)
     def extract(self, message, context):
