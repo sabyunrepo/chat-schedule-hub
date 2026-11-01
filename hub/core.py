@@ -81,10 +81,10 @@ class Store:
         if active:
             with self.db: self.db.execute("UPDATE runs SET state='superseded',reason='retention-policy-changed',updated=? WHERE id=?",(now(),active['id']))
         boundary=self.db.execute('SELECT anchors FROM boundaries WHERE target=?',(target,)).fetchone()
-        from .selection import RULE_VERSION
+        from .selection import COMPATIBLE_RULE_VERSIONS
         policy=self.db.execute('SELECT version FROM boundary_policies WHERE target=?',(target,)).fetchone()
         # Unknown/older selection policies may have discarded newly valuable evidence.
-        if restart or not policy or policy[0] not in (0,RULE_VERSION): boundary=None
+        if restart or not policy or policy[0] not in (0,*COMPATIBLE_RULE_VERSIONS): boundary=None
         rid=str(uuid.uuid4()); stamp=now()
         with self.db: self.db.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,?,?,?)',(rid,target,'active','{}',boundary[0] if boundary else '[]','[]',None,stamp,stamp))
         return dict(self.db.execute('SELECT * FROM runs WHERE id=?',(rid,)).fetchone())

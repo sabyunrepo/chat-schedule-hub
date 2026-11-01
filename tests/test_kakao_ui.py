@@ -5,6 +5,20 @@ def window(body, title='Test', position='.3'):
     return f'Window: "{title}", App: 카카오톡.\n\t\t2 표\n\t\t\t3 row (selectable)\n{body}\n\t\t31 스크롤 막대 (settable, float) {position}'
 
 class KakaoUiTests(unittest.TestCase):
+    def test_empty_trailing_row_is_not_message_text(self):
+        s=window('\t\t\t\t5 text 실제 메시지\n\t\t\t30 row (selectable)')
+        self.assertEqual(parse_window(s)['rows'][0]['text'],'실제 메시지')
+
+    def test_inline_schedule_card_not_dropped(self):
+        s=window('\t\t\t\t5 text Help: 2026. 11. 1., Value: 99\n오전 11:35 표시이름 15분 후에 일정이 있습니다. 11 1 모임 2026년 11월 1일 참석여부 응답하기')
+        r=parse_window(s)['rows'][0]
+        self.assertEqual(r['sentAt'],'2026-11-01T11:35:00+09:00')
+        self.assertTrue(r['text'].startswith('표시이름 15분 후'))
+
+    def test_shallow_scrollbar_ends_message_table(self):
+        s=window('\t\t\t\t5 text 실제 메시지').replace('\t\t31 스크롤','\t31 스크롤')+'\n\t40 텍스트 창 공지'
+        self.assertEqual(parse_window(s)['rows'],[{'text':'실제 메시지','sentAt':None,'authorRef':None}])
+
     def test_numeric_body_continuations_are_preserved(self):
         s=window('\t\t\t\t5 text Help: 2026. 10. 27., Value: 1\n오후 3:39 표시이름\n\t\t\t\t6 텍스트 엔트리 영역 후보\n12월\n17\n\n1월\n6 12 13 19\n\t\t\t\t7 이미지')
         self.assertEqual(parse_window(s)['rows'][0]['text'],'후보\n12월\n17\n\n1월\n6 12 13 19')

@@ -10,10 +10,10 @@ from ..core import digest, require
 def parse_window(state):
     title=re.search(r'^Window: "(.*?)", App:',state)
     require(title is not None,'full AX window required, not a diff')
-    table=re.search(r'\n\t\t\d+ 표[^\n]*\n(.*?)(?=\n\t\t\d+ 스크롤 막대|\Z)',state,re.S)
+    table=re.search(r'\n\t\t\d+ 표[^\n]*\n(.*?)(?=\n\t{1,2}\d+ 스크롤 막대|\Z)',state,re.S)
     require(table is not None,'message table not found')
     rows=[]
-    for block in re.split(r'\n?\t{3}\d+ row[^\n]*\n',table[1])[1:]:
+    for block in re.split(r'\n?\t{3}\d+ row[^\n]*(?:\n|$)',table[1])[1:]:
         # Kakao exposes either Value: 오후 2:51 or an unread count followed by a time line.
         date=re.search(r'Help: (\d{4})\. (\d+)\. (\d+)\., Value: (?:\d+\n)?(오전|오후) (\d+):(\d+)',block)
         sent=None
@@ -21,6 +21,12 @@ def parse_window(state):
             y,mo,d,amp,h,minute=date.groups()
             sent=datetime(int(y),int(mo),int(d),int(h)%12+(12 if amp=='오후' else 0),int(minute),tzinfo=timezone(timedelta(hours=9))).isoformat()
         text=[]
+        # Some schedule cards expose their entire body after the timestamp in
+        # the Help/Value element. A plain sender name alone is not a message.
+        if date:
+            suffix=block[date.end():].split('\n',1)[0].strip()
+            if re.search(r'일정 확인하기|참석여부 응답하기|일정이 (?:취소|변경)|님의 글을 공유',suffix):
+                text.append(suffix)
         include_continuation=False
         for raw in block.splitlines():
             element=re.match(r'^\t+\d+ (.*)$',raw)

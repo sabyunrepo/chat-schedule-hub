@@ -2,7 +2,10 @@
 import json, time, re
 from .core import digest, require, message_fingerprint
 
-RULE_VERSION = 6
+RULE_VERSION = 7
+# v7 only removes irrelevant uncertain chatter; v6 boundaries omit no newly
+# eligible evidence. Older, broader policy changes still require reobservation.
+COMPATIBLE_RULE_VERSIONS = (6, 7)
 RELEVANCE_FLOOR = .1
 
 
@@ -23,7 +26,7 @@ def select_ingest(store, batch, provider, context=''):
         return json.loads(previous[0])
     require(run['state']=='active','run not active')
     prior=store.db.execute("SELECT result FROM batches WHERE run=? AND json_type(result,'$.selection') IS NOT NULL LIMIT 1",(batch['runId'],)).fetchall()
-    require(all('selection' not in json.loads(row[0]) or json.loads(row[0])['selection'].get('ruleVersion')==RULE_VERSION for row in prior),
+    require(all('selection' not in json.loads(row[0]) or json.loads(row[0])['selection'].get('ruleVersion') in COMPATIBLE_RULE_VERSIONS for row in prior),
             'retention policy changed: begin with restart=true and reobserve the selected range')
     store.validate_messages(batch)
     started=time.perf_counter(); decisions={}; uncached=[]; cache_keys={}
@@ -46,7 +49,10 @@ def select_ingest(store, batch, provider, context=''):
     for i,d in decisions.items():
         # Relevance is a separate binary criterion; class confidence is not relevance.
         if d.get('relevance',1)>RELEVANCE_FLOOR: keep.add(i)
-        if d.get('intent') in ('review', 'uncertain') or re.search(r'정정|착오|잘못|아니라|전달받|알고\s*있|변경|준비물|담당|마감',batch['messages'][i]['text']): keep.add(i)
+        # Preserve ambiguous references, but a zero-relevance greeting does not
+        # gain value merely because its intent label is uncertain.
+        if d.get('intent') == 'uncertain' and d.get('relevance',1)>0: keep.add(i)
+        if d.get('intent') == 'review' or re.search(r'정정|착오|잘못|아니라|전달받|알고\s*있|변경|준비물|담당|마감',batch['messages'][i]['text']): keep.add(i)
         # High-recall guard for dates/deadlines and explicit changes; never a keyword-only reject.
         if re.search(r'(\d+\s*(?:시|시간|분|월|일|주)|오늘|내일|모레|이번\s*주|다음\s*주|요일|취소|불참|참석|참여|연기|확정|예약|일정|약속)',batch['messages'][i]['text']): keep.add(i)
         # Short invitations can have no date and be misclassified as casual chatter.

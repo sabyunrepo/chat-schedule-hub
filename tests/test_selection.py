@@ -33,6 +33,22 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(p.calls,0)
     def test_uncertain_retained(self):
         r=select_ingest(self.s,self.b,Fake({0:'uncertain'}));self.assertEqual(r['selection']['retained'],2)
+    def test_irrelevant_uncertain_greetings_not_retained(self):
+        class GreetingProvider(Fake):
+            def classify_page(self,messages,indices,context):
+                return {i:{'intent':'uncertain','confidence':.9,'relevance':0} for i in indices}
+        for m in self.b['messages']:m['text']='안녕'
+        result=select_ingest(self.s,self.b,GreetingProvider())
+        self.assertEqual(result['selection']['retained'],0)
+        self.assertEqual(self.s.pending(),[])
+
+    def test_narrower_policy_accepts_v6_run(self):
+        select_ingest(self.s,self.b,Fake())
+        old=json.loads(self.s.db.execute('SELECT result FROM batches').fetchone()[0])
+        old['selection']['ruleVersion']=6
+        with self.s.db:self.s.db.execute('UPDATE batches SET result=?',(json.dumps(old),))
+        self.b['batchId']='v7-page'
+        self.assertEqual(select_ingest(self.s,self.b,Fake())['selection']['ruleVersion'],7)
     def test_dropped_messages_still_form_boundary(self):
         self.b.update(stopReason='requested-range-reached',coverageVerified=True);select_ingest(self.s,self.b,Fake())
         self.b.update(batchId='next',runId=self.s.begin('t')['id'],stopReason='continue');r=select_ingest(self.s,self.b,Fake());self.assertEqual(r['stopReason'],'known-boundary');self.assertEqual(len(self.s.pending()),0)
