@@ -1,5 +1,5 @@
 import type {Event} from './model';
-import {instant} from './event-time';
+import {instant} from './event-time.ts';
 export function layoutEvents(events:Event[],start:number,days:number,dayWidth=120){
  const width=days*dayWidth, lanes:{right:number,height:number}[]=[];
  const items=events.filter(e=>e.start).sort((a,b)=>instant(a.start!)-instant(b.start!)||a.id.localeCompare(b.id)).map(event=>{

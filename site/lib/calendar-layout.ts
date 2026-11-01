@@ -1,0 +1,5 @@
+import type {Event} from './model';
+import {instant} from './event-time.ts';
+export const dayKey=(n:number)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(n);
+export function monthCells(first:string){const weekday=(new Date(first+'T00:00:00Z').getUTCDay()+6)%7;const days=new Date(Date.UTC(Number(first.slice(0,4)),Number(first.slice(5,7)),0)).getUTCDate();return Array.from({length:Math.ceil((weekday+days)/7)*7},(_,i)=>dayKey(instant(first)+(i-weekday)*86400000));}
+export function eventsForDay(events:Event[],day:string){const start=instant(day),end=start+86400000;return events.filter(e=>{if(!e.start||e.excluded||e.status==='cancelled')return false;const s=instant(e.start),t=e.end?instant(e.end):(e.allDay||e.start.length===10?s+86400000:s);return s<end&&(t>s?t>start:s>=start)}).sort((a,b)=>Number(!!b.allDay||b.start?.length===10)-Number(!!a.allDay||a.start?.length===10)||instant(a.start!)-instant(b.start!)||a.id.localeCompare(b.id));}
