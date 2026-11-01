@@ -58,6 +58,11 @@ class SelectionTests(unittest.TestCase):
         with self.assertRaises(ValueError):select_ingest(self.s,self.b,p)
         self.assertEqual(p.calls,1)
 
+    def test_short_join_request_survives_false_negative(self):
+        self.b['messages'][3]['text']='보이스 ㄱㄱ'
+        select_ingest(self.s,self.b,Fake())
+        self.assertEqual([j['message']['originId'] for j in self.s.pending()],['3'])
+
     def test_pending_preserves_decision_for_extraction(self):
         select_ingest(self.s,self.b,Fake({3:'schedule'}))
         item=next(j for j in self.s.pending() if j['message']['originId']=='3')

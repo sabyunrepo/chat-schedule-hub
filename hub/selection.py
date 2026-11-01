@@ -2,7 +2,7 @@
 import json, time, re
 from .core import digest, require
 
-RULE_VERSION = 3
+RULE_VERSION = 4
 RELEVANCE_FLOOR = .1
 
 
@@ -45,6 +45,9 @@ def select_ingest(store, batch, provider, context=''):
         if d.get('relevance',1)>RELEVANCE_FLOOR: keep.add(i)
         # High-recall guard for dates/deadlines and explicit changes; never a keyword-only reject.
         if re.search(r'(\d+\s*(?:시|시간|분|월|일|주)|오늘|내일|모레|이번\s*주|다음\s*주|요일|취소|불참|참석|참여|연기|확정|예약|일정|약속)',batch['messages'][i]['text']): keep.add(i)
+        # Short invitations can have no date and be misclassified as casual chatter.
+        # Preserve explicit join cues without treating them as confirmed future events.
+        if re.search(r'(?:디코|디스코드|음성|보이스|회의|게임|모임).{0,20}(?:ㄱㄱ|들어|오세|와요|오실|합류)|(?:들어오세요|들어와요|합류해)',batch['messages'][i]['text']): keep.add(i)
         if d.get('relevance',1)>=.6:
             for j in [i-1,i+1]:
                 if not 0<=j<len(batch['messages']): continue
