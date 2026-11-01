@@ -1,5 +1,7 @@
 # 카카오톡 Mac
 
+Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](../CONTINUOUS_COLLECTION.md).
+
 - 방식: 호스트 컴퓨터 유즈로 앱 UI를 읽고 공통 배치를 전달한다. 일반방과 오픈채팅 목록은 각각 탐색한다.
 - 범위: 모든 방 요청이라도 단일방 파일럿 수용 후 확대한다. 방 목록 화면 하나가 전체 목록은 아니다.
 - 식별: 원본 메시지 ID 미확인. 겹침 맥락 기반 발생 키의 반복/수정 메시지 안정성은 미검증.

@@ -1,5 +1,7 @@
 # Chat Schedule Hub — 최종 제품·구현·배포 계획
 
+Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](docs/CONTINUOUS_COLLECTION.md).
+
 작성일: 2026-11-01
 상태: 구현 진행 중. 저장·선택 수집 테스트 28개 및 웹앱 타입 검사·빌드 통과. Decisions 합성 일정 분류 실호출 성공. 비공개 Sites 배포 성공. 실제 30일 수집·실기기 검증은 미완료.
 프로젝트 경로: /Users/sabyun/chat-schedule-hub

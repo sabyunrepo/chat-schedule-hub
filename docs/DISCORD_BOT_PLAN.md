@@ -1,5 +1,7 @@
 # Discord 봇 수집 전환 계획
 
+Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](CONTINUOUS_COLLECTION.md).
+
 상태: 앱 생성·토큰 안전 저장·공식 API 인증·두 서버 접근 확인. 제한 REST 파일럿을 공통 선별/저장에 연결해 실제 실행했다. Gateway 상시 수집·전체 30일 이력·수정 이벤트/복구 검증은 미완료이며 전체 확대는 보류다. 마지막 검증 절이 최신 상태다.
 
 ## 목표와 경계

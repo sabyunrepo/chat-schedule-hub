@@ -32,9 +32,9 @@ for key, label, transport in [('kakao-mac', '카카오톡', 'native-ui'), ('disc
 
 
 REGISTRY.register(dict(id='discord-bot', label='Discord 봇', transport='official-api',
-    contractVersion=1, adapterVersion='0.1.0', driver='bounded-rest-pilot',
-    capabilities=dict(history='bounded-page', resume='native-before-cursor', edits='observed-only',
-                      deletions='unsupported', threads='explicit-target', attachments='metadata-only')))
+    contractVersion=1, adapterVersion='0.2.0', driver='discord.py-gateway',
+    capabilities=dict(history='bounded-page', resume='gateway-resume-and-bounded-repair', edits='raw-event-refetch',
+                      deletions='explicit-only', threads='active-and-explicit-target', attachments='metadata-only')))
 
 
 class Store:
@@ -144,17 +144,21 @@ class Store:
                 new+=int(old is None); changed+=int(old is not None)
             # Require three consecutive anchors, not a single repeated word or timestamp.
             boundary=False
-            if len(baseline)>=3:
+            live = batch.get('mode') == 'live'
+            require(not live or target['adapter'] == 'discord-bot', 'live mode requires Discord bot')
+            if not live and len(baseline)>=3:
                 for i in range(len(identities)-2):
                     if any(identities[i:i+3]==baseline[j:j+3] for j in range(len(baseline)-2)): boundary=True
             reason=batch.get('stopReason','continue')
             require(reason in ['continue','requested-range-reached','explicit-source-end','budget-exhausted','cancelled','retryable-error','access-blocked','anchor-lost'],'invalid stop reason')
             if boundary: reason='known-boundary'
             complete=reason in ['known-boundary','requested-range-reached','explicit-source-end']
+            require(not live or not complete, 'live events cannot complete history')
             require(not complete or batch.get('coverageVerified') is True,'coverage evidence required')
             if not seen: seen=identities[:12]
             # Partial runs remain active: a later begin resumes rather than skipping the gap.
-            self.db.execute('UPDATE runs SET state=?,cursor=?,seen=?,reason=?,updated=? WHERE id=?',('complete' if complete else 'active',json.dumps(batch.get('cursor',{})),json.dumps(seen),reason,now(),run['id']))
+            if not live:
+                self.db.execute('UPDATE runs SET state=?,cursor=?,seen=?,reason=?,updated=? WHERE id=?',('complete' if complete else 'active',json.dumps(batch.get('cursor',{})),json.dumps(seen),reason,now(),run['id']))
             if complete:
                 self.db.execute('INSERT INTO boundaries VALUES(?,?,?) ON CONFLICT(target) DO UPDATE SET anchors=excluded.anchors,updated=excluded.updated',(run['target'],json.dumps(seen or baseline),now()))
                 self.db.execute('INSERT OR REPLACE INTO boundary_policies VALUES(?,?)',(run['target'],selection['metrics']['ruleVersion'] if selection else 0))

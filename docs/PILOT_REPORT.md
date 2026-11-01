@@ -1,5 +1,7 @@
 # 선택 수집 파일럿 — 2026-11-01
 
+Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](CONTINUOUS_COLLECTION.md).
+
 상태: 소규모 검증 완료, 전체 수집 보류. 개인 원문·계정·서버 식별값은 이 보고서에 포함하지 않는다.
 
 ## 범위와 방식

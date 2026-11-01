@@ -1,5 +1,7 @@
 # Discord 정식 봇 — 제한 REST 파일럿 구현
 
+Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](../CONTINUOUS_COLLECTION.md).
+
 사용자가 Discord 웹 UI에서 공식 bot API/Gateway로 전환을 승인했다. SourceRegistry에 등록하고 `hub/sources/discord_bot.py`의 인증·목록·한 페이지 수집·정규화를 공통 select-ingest에 연결했다. Gateway 상시 실행, 자동 30일 페이지 순회, 보관 스레드 탐색은 아직 미구현이다. 아래 항목은 목표 계약이며 현재 capability는 sources 출력이 기준이다. [상세 계획](../DISCORD_BOT_PLAN.md)을 따른다.
 
 실행: `python3 -m hub.sources.discord_bot probe`. 제한 선별 파일럿: `python3 -m hub.sources.discord_bot pilot --guild GUILD_ID --channel CHANNEL_ID --allow-external-processing`. 기본 최대 16개, 최대 허용 32개이며 최근 30일 밖 메시지는 저장·AI 전송하지 않는다. 실제 ID/토큰은 사용자 앱 데이터 설정에만 둔다. 기본 파일럿 DB는 운영 DB와 분리한다. 전체 기간 완료를 선언하지 않는다. 같은 페이지 재전달의 캐시를 검증하며, 페이지 문맥 변화 시 전체 재분류하는 기존 캐시 한계는 남아 있다.
