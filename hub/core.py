@@ -31,6 +31,12 @@ for key, label, transport in [('kakao-mac', '카카오톡', 'native-ui'), ('disc
         capabilities=dict(history=True, resume='observed-anchor', edits='observed-only', deletions='explicit-only', threads='separate-target', attachments='metadata-only')))
 
 
+REGISTRY.register(dict(id='discord-bot', label='Discord 봇', transport='official-api',
+    contractVersion=1, adapterVersion='0.1.0', driver='bounded-rest-pilot',
+    capabilities=dict(history='bounded-page', resume='native-before-cursor', edits='observed-only',
+                      deletions='unsupported', threads='explicit-target', attachments='metadata-only')))
+
+
 class Store:
     def __init__(self, path):
         if str(path) != ':memory:':

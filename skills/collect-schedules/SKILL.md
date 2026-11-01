@@ -40,4 +40,4 @@ sourceLocator, editedAt, provenance, timestampPrecision, threadRef와 replyToRef
 
 ## Discord 정식 봇 전환
 
-사용자가 봇 수집으로 전환했다. Discord 웹 수동 순회를 전체로 확대하지 않는다. discord-bot 어댑터는 아직 구현 전이므로 현재 `sources`에 없는 경로를 실행한 척하지 않는다. 상세는 docs/DISCORD_BOT_PLAN.md와 docs/sources/discord-bot.md를 따른다. 카톡은 기존 UI 경로를 유지한다. 봇 설치/Message Content/서버 allowlist 확인 후 한 채널 파일럿을 먼저 검증한다.
+사용자가 봇 수집으로 전환했다. Discord 웹 수동 순회를 전체로 확대하지 않는다. discord-bot은 제한 REST 파일럿으로 등록되어 있다. `python3 -m hub.sources.discord_bot probe`로 연결을 확인하고 `pilot --guild GUILD_ID --channel CHANNEL_ID --allow-external-processing`으로 한 페이지를 선별한다. Gateway 상시 수집과 자동 전체 이력 순회는 미구현이다. 상세는 docs/DISCORD_BOT_PLAN.md와 docs/sources/discord-bot.md를 따른다. 카톡은 기존 UI 경로를 유지한다. 불확실 분류는 관련성 점수가 낮아도 보관하며 선택 규칙 버전은 6이다.

@@ -2,7 +2,7 @@
 import json, time, re
 from .core import digest, require, message_fingerprint
 
-RULE_VERSION = 5
+RULE_VERSION = 6
 RELEVANCE_FLOOR = .1
 
 
@@ -46,7 +46,7 @@ def select_ingest(store, batch, provider, context=''):
     for i,d in decisions.items():
         # Relevance is a separate binary criterion; class confidence is not relevance.
         if d.get('relevance',1)>RELEVANCE_FLOOR: keep.add(i)
-        if d.get('intent')=='review' or re.search(r'정정|착오|잘못|아니라|전달받|알고\s*있|변경|준비물|담당|마감',batch['messages'][i]['text']): keep.add(i)
+        if d.get('intent') in ('review', 'uncertain') or re.search(r'정정|착오|잘못|아니라|전달받|알고\s*있|변경|준비물|담당|마감',batch['messages'][i]['text']): keep.add(i)
         # High-recall guard for dates/deadlines and explicit changes; never a keyword-only reject.
         if re.search(r'(\d+\s*(?:시|시간|분|월|일|주)|오늘|내일|모레|이번\s*주|다음\s*주|요일|취소|불참|참석|참여|연기|확정|예약|일정|약속)',batch['messages'][i]['text']): keep.add(i)
         # Short invitations can have no date and be misclassified as casual chatter.
