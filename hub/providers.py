@@ -1,5 +1,6 @@
 """Provider transport is injectable; no credential is stored in the database."""
 import json, os, urllib.request, urllib.error
+from pathlib import Path
 
 class ProviderError(Exception): pass
 
@@ -10,6 +11,10 @@ class OpenAIDecisions:
         self.transport=transport or self._request
     def _request(self, body):
         key=os.environ.get('OPENAI_API_KEY')
+        key_file=Path(os.environ.get('OPENAI_API_KEY_FILE',str(Path.home()/'Library/Application Support/ChatScheduleHub/openai.key')))
+        if not key and key_file.is_file():
+            if key_file.stat().st_mode & 0o077: raise ProviderError('Credential file must be owner-only (chmod 600)')
+            key=key_file.read_text().strip()
         if not key: raise ProviderError('OPENAI_API_KEY is not configured')
         req=urllib.request.Request('https://api.openai.com/v1/decisions',data=json.dumps(body).encode(),headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'})
         try:
