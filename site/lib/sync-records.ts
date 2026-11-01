@@ -24,6 +24,6 @@ export async function readData(owner:string){
  const rows=await env.DB!.prepare('SELECT kind,payload,updated FROM sync_records WHERE owner=? ORDER BY updated,id').bind(owner).all<{kind:string;payload:string;updated:string}>();
  if(!rows.results.length)return null;
  const events=new Map(),people=new Map(),sources=new Map();let updated='';
- for(const r of rows.results){const value=JSON.parse(r.payload);(r.kind==='event'?events:r.kind==='person'?people:sources).set(value.id,value);if(r.updated>updated)updated=r.updated;}
+ for(const r of rows.results){const value=JSON.parse(r.payload);if(r.kind==='event'&&value.excluded===true)continue;(r.kind==='event'?events:r.kind==='person'?people:sources).set(value.id,value);if(r.updated>updated)updated=r.updated;}
  return {data:{schemaVersion:1,events:[...events.values()],people:[...people.values()],sources:[...sources.values()],generatedAt:updated},updated};
 }

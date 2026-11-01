@@ -70,6 +70,8 @@ class Store:
         CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY, run TEXT NOT NULL REFERENCES runs(id), result TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY, version INTEGER NOT NULL, payload TEXT NOT NULL, updated TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS changes(id TEXT PRIMARY KEY, event TEXT NOT NULL REFERENCES events(id), payload TEXT NOT NULL, created TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS event_evidence_links(event TEXT NOT NULL, revision TEXT NOT NULL, label TEXT NOT NULL, PRIMARY KEY(event,revision));
+        CREATE TABLE IF NOT EXISTS source_event_policy(target TEXT PRIMARY KEY, excluded INTEGER NOT NULL, reason TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS people(id TEXT PRIMARY KEY, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS outbox(id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, version INTEGER NOT NULL, payload TEXT NOT NULL, sent INTEGER NOT NULL DEFAULT 0, UNIQUE(event,version));
         CREATE INDEX IF NOT EXISTS message_target ON messages(target,observed,id);
@@ -202,4 +204,19 @@ class Store:
             self.db.execute('INSERT INTO outbox(event,version,payload) VALUES(?,?,?)',(eid,v,json.dumps(event,ensure_ascii=False)))
         return event
     def snapshot(self):
-        return dict(schemaVersion=1,events=[json.loads(r[0]) for r in self.db.execute('SELECT payload FROM events')],people=[json.loads(r[0]) for r in self.db.execute('SELECT payload FROM people')],sources=[dict(r) for r in self.db.execute('SELECT t.id,t.label,t.adapter,r.reason,r.updated FROM targets t LEFT JOIN runs r ON r.id=(SELECT id FROM runs WHERE target=t.id ORDER BY started DESC LIMIT 1)')],generatedAt=now())
+        events=[json.loads(r[0]) for r in self.db.execute('SELECT payload FROM events')]
+        excluded={r[0] for r in self.db.execute('SELECT r.id FROM revisions r JOIN messages m ON r.message=m.id JOIN source_event_policy p ON p.target=m.target WHERE p.excluded=1')}
+        links={}
+        for row in self.db.execute('SELECT event,revision,label FROM event_evidence_links'):
+            links.setdefault(row[0],[]).append((row[1],row[2]))
+        for event in events:
+            extra=links.get(event['id'],[])
+            if extra:
+                event['evidence']=list(dict.fromkeys(event.get('evidence',[])+[x[0] for x in extra]))[-30:]
+                event['source']=' · '.join(dict.fromkeys([event.get('source','일정')]+[x[1] for x in extra]))
+            if any(ref in excluded for ref in event.get('evidence',[])): event['excluded']=True
+        sources=[dict(r) for r in self.db.execute('SELECT t.id,t.label,t.adapter,r.reason,r.updated FROM targets t LEFT JOIN runs r ON r.id=(SELECT id FROM runs WHERE target=t.id ORDER BY started DESC LIMIT 1)')]
+        blocked={r[0] for r in self.db.execute('SELECT target FROM source_event_policy WHERE excluded=1')}
+        for source in sources:
+            if source['id'] in blocked:source['reason']='excluded-by-user'
+        return dict(schemaVersion=1,events=events,people=[json.loads(r[0]) for r in self.db.execute('SELECT payload FROM people')],sources=sources,generatedAt=now())

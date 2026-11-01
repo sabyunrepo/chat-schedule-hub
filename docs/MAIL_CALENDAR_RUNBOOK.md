@@ -49,3 +49,9 @@ python -m hub.sources.calendar_pilot --calendar primary --limit 10
 ## 검증
 
 Python unittest 75개 통과. 신규 검증: 인증 파일 권한, HTML 정규화·스크립트 제외, 보안 메일 제외, 계정 격리, IMAP 읽기 전용 명령, 재전달 모델 호출 0, 캘린더 종일 종료·변경·취소·중복 반영 방지. 실제 인증과 파일럿은 위 표대로 별도 수행했다. 저장소 변경과 공개 릴리스/마켓 심사는 별개다.
+
+## 페이지 누락 및 일정 소유 정정
+
+Calendar collect는 max_pages 예산 내 nextPageToken을 처리한다(페이지당 최대 250개). 기간 완료는 페이지 종료와 일정 저장 성공 및 gap 없음이 확인될 때만 기록한다. 기본 캘린더는 나와 연결하고, 공유 캘린더는 명시적인 associate_me 없이는 나로 표시하지 않는다. 일반 운영의 syncToken 증분 동기화는 여전히 후속 과제다.
+
+메일의 명시적인 Google Calendar 알림은 hub.mail_evidence의 날짜/제목 일치로 기존 일정에 근거를 연결한다. 근거 링크는 별도 테이블로 보존하므로 Calendar 재수집으로 사라지지 않는다.

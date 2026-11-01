@@ -35,7 +35,9 @@ def parse_card(text, kind='personal'):
 
 def materialize(store, kind='personal'):
     groups={};seen=0
+    excluded={r[0] for r in store.db.execute('SELECT target FROM source_event_policy WHERE excluded=1')}
     for row in store.db.execute('SELECT id,target,payload FROM messages'):
+        if row['target'] in excluded:continue
         m=json.loads(row['payload']);card=parse_card(m.get('text',''),kind)
         if not card:continue
         seen+=1;key,event=card;identity=(row['target'],*key)
