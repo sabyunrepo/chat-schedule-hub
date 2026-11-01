@@ -215,6 +215,24 @@ class Store:
                 event['evidence']=list(dict.fromkeys(event.get('evidence',[])+[x[0] for x in extra]))[-30:]
                 event['source']=' · '.join(dict.fromkeys([event.get('source','일정')]+[x[1] for x in extra]))
             if any(ref in excluded for ref in event.get('evidence',[])): event['excluded']=True
+        # Resolve only event-linked revisions in one query; keep IDs for audit/dedup.
+        refs={ref for event in events for ref in event.get('evidence',[])}
+        resolved={}
+        for row in self.db.execute('SELECT r.id,r.payload,t.label,t.adapter FROM revisions r JOIN messages m ON r.message=m.id JOIN targets t ON t.id=m.target WHERE r.id IN (SELECT value FROM json_each(?))',(json.dumps(sorted(refs)),)):
+            payload=json.loads(row[1]); structured=payload.get('structuredPayload') or {}
+            calendar=row[3]=='google-calendar-api'
+            excerpt=(payload.get('text') or '').strip()[:600]
+            if calendar:
+                excerpt=' · '.join(str(x) for x in [structured.get('title') or excerpt,structured.get('start'),structured.get('end'),structured.get('location')] if x)[:600]
+            if row[3] in ('gmail-api','naver-imap'):
+                excerpt='\n'.join(line.strip() for line in excerpt.splitlines() if line.strip())[:240]
+            adapter_label={'google-calendar-api':'Google Calendar','gmail-api':'Gmail','naver-imap':'네이버 메일','kakao-mac':'카카오톡','discord-bot':'Discord'}.get(row[3],row[3])
+            target_label='받은편지함' if row[2] in ('gmail-api INBOX','naver-imap INBOX') else row[2]
+            resolved[row[0]]=dict(source=adapter_label+' · '+target_label,
+                summary='캘린더에 등록된 제목과 시작·종료 시간을 반영했습니다.' if calendar else '일정에 연결된 원문입니다. 아래 내용을 근거로 확인할 수 있습니다.',
+                excerpt=excerpt,observedAt=payload.get('observedAt'),sentAt=payload.get('sentAt'),url=payload.get('sourceLocator') if isinstance(payload.get('sourceLocator'),str) else None)
+        for event in events:
+            event['evidenceDetails']=[resolved[ref] for ref in event.get('evidence',[]) if ref in resolved][:30]
         sources=[dict(r) for r in self.db.execute('SELECT t.id,t.label,t.adapter,r.reason,r.updated FROM targets t LEFT JOIN runs r ON r.id=(SELECT id FROM runs WHERE target=t.id ORDER BY started DESC LIMIT 1)')]
         blocked={r[0] for r in self.db.execute('SELECT target FROM source_event_policy WHERE excluded=1')}
         for source in sources:

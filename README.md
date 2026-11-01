@@ -1,6 +1,6 @@
 # 모아 · Chat Schedule Hub
 
-0.3.1 개발 미리보기: 레코드 증분 동기화와 Dot 실행 안내를 포함합니다. Gmail·네이버·Google Calendar 연결 파일럿과 연결 전용 스킬을 추가했습니다. [변경 이력](CHANGELOG.md)을 참고하세요. 기존 0.1.1에서는 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
+0.3.2 개발 미리보기: 레코드 증분 동기화와 Dot 실행 안내를 포함합니다. Gmail·네이버·Google Calendar 연결 파일럿과 연결 전용 스킬을 추가했습니다. [변경 이력](CHANGELOG.md)을 참고하세요. 기존 0.1.1에서는 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
 
 대화에서 일정을 정리하는 Codex 플러그인과 개인 일정 조회용 웹앱입니다. 현재 개발 미리보기입니다.
 

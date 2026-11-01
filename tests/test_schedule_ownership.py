@@ -16,6 +16,13 @@ class OwnershipTests(unittest.TestCase):
   pid=s.snapshot()['people'][0]['id'];self.assertTrue(s.snapshot()['people'][0]['isMe'])
   self.assertTrue(all(e['participants']==[pid] for e in s.snapshot()['events']))
   self.assertEqual(collect(s,api,'primary',max_pages=2)['applied'],0)
+  for e in s.snapshot()['events']:
+   self.assertTrue(e['evidence'])
+   self.assertEqual(len(e['evidenceDetails']),1)
+   detail=e['evidenceDetails'][0]
+   self.assertIn('Google Calendar',detail['source'])
+   self.assertIn('Meeting',detail['excerpt'])
+   self.assertIn('2026-11-02',detail['excerpt'])
   self.assertFalse(collect(s,api,'shared',max_pages=1)['coverageComplete'])
   self.assertTrue(any(not p['isMe'] for p in s.snapshot()['people']))
  def test_source_exclusion_survives_reprocessing(self):
