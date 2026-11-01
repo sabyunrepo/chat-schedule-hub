@@ -15,6 +15,13 @@
       "when": 1793500000000,
       "tag": "0001_delta_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793511255942,
+      "tag": "0002_special_red_wolf",
+      "breakpoints": true
     }
   ]
 }

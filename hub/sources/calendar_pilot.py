@@ -38,12 +38,27 @@ def collect(store,api,calendar_id,kind='personal',limit=20,max_pages=1,associate
     with store.db:store.db.execute('INSERT INTO people VALUES(?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',(pid,json.dumps(person,ensure_ascii=False)))
     stamp=datetime.now(timezone.utc);lower=stamp-timedelta(days=30);upper=stamp+timedelta(days=180)
     store.register_target(target,'google-calendar-api',connection,'기본 캘린더' if chosen.get('primary') else chosen.get('summary','Calendar'),{'since':lower.isoformat(),'until':upper.isoformat()})
-    run=store.begin(target,restart=True);token=None;gaps=[]
+    store.db.execute('CREATE TABLE IF NOT EXISTS calendar_sync(target TEXT PRIMARY KEY, token TEXT NOT NULL, refreshed TEXT NOT NULL)')
+    previous=store.db.execute('SELECT token,refreshed FROM calendar_sync WHERE target=?',(target,)).fetchone()
+    sync_token=previous[0] if previous and stamp-datetime.fromisoformat(previous[1])<timedelta(days=30) else None
+    store.db.execute('CREATE TABLE IF NOT EXISTS calendar_refresh(target TEXT PRIMARY KEY, updated TEXT NOT NULL, full_refresh TEXT NOT NULL)')
+    refresh=store.db.execute('SELECT updated,full_refresh FROM calendar_refresh WHERE target=?',(target,)).fetchone()
+    modified_since=refresh[0] if refresh and stamp-datetime.fromisoformat(refresh[1])<timedelta(days=1) else None
+    run=store.begin(target,restart=True);token=None;gaps=[];next_sync=None
     report=dict(fetched=0,new=0,changed=0,applied=0,modelCalls=0,pages=0)
     for _ in range(max_pages):
         params={'timeMin':lower.isoformat(),'timeMax':upper.isoformat(),'maxResults':limit,'singleEvents':'true','orderBy':'startTime','showDeleted':'true'}
+        if sync_token:params={'syncToken':sync_token,'maxResults':limit,'singleEvents':'true','showDeleted':'true'}
+        if not sync_token and modified_since:params['updatedMin']=(datetime.fromisoformat(modified_since)-timedelta(seconds=2)).isoformat()
         if token:params['pageToken']=token
-        page=api.get('calendar','calendars/'+quote(calendar_id,safe='')+'/events',params)
+        try:page=api.get('calendar','calendars/'+quote(calendar_id,safe='')+'/events',params)
+        except ValueError as exc:
+            if sync_token and 'HTTP 410' in str(exc):
+                with store.db:
+                    store.db.execute('DELETE FROM calendar_sync WHERE target=?',(target,))
+                    store.db.execute('DELETE FROM calendar_refresh WHERE target=?',(target,))
+            raise
+        next_sync=page.get('nextSyncToken')
         token=page.get('nextPageToken');rows=[];normalized={}
         for raw in page.get('items',[]):
             eid=digest([target,raw['id']])
@@ -71,7 +86,11 @@ def collect(store,api,calendar_id,kind='personal',limit=20,max_pages=1,associate
     complete=not token and not gaps
     if complete:
         with store.db:store.db.execute("UPDATE runs SET state='complete',reason='requested-range-reached',updated=? WHERE id=?",(now(),run['id']))
-    return dict(**report,gaps=gaps,hasMore=bool(token),coverageComplete=complete)
+    if complete:
+        with store.db:store.db.execute('INSERT INTO calendar_refresh VALUES(?,?,?) ON CONFLICT(target) DO UPDATE SET updated=excluded.updated,full_refresh=excluded.full_refresh',(target,stamp.isoformat(),refresh[1] if modified_since else stamp.isoformat()))
+    if complete and next_sync:
+        with store.db:store.db.execute('INSERT INTO calendar_sync VALUES(?,?,?) ON CONFLICT(target) DO UPDATE SET token=excluded.token,refreshed=excluded.refreshed',(target,next_sync,previous[1] if sync_token else stamp.isoformat()))
+    return dict(**report,gaps=gaps,hasMore=bool(token),coverageComplete=complete,incremental=bool(sync_token or modified_since),syncMode='sync-token' if sync_token else 'modified-since' if modified_since else 'bounded-refresh')
 
 
 def main():

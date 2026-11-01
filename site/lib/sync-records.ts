@@ -14,6 +14,11 @@ export async function applyDelta(owner:string,input:unknown,digest:string){
  const statements=b.records.map(r=>db.prepare(`INSERT INTO sync_records(owner,installation,kind,id,payload,sequence,updated)
  SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM sync_heads WHERE owner=? AND installation=? AND sequence>=?)
  ON CONFLICT(owner,installation,kind,id) DO UPDATE SET payload=excluded.payload,sequence=excluded.sequence,updated=excluded.updated WHERE sync_records.sequence<excluded.sequence`).bind(owner,b.installationId,r.kind,r.value.id,JSON.stringify(r.value),b.sequence,stamp,owner,b.installationId,b.sequence));
+ for(const r of b.records){if(r.kind!=='event')continue;
+ statements.unshift(db.prepare(`INSERT OR IGNORE INTO event_history(owner,id,revision,payload,created)
+ SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM sync_records WHERE owner=? AND installation=? AND kind='event' AND id=? AND sequence<? AND coalesce(json_extract(payload,'$.version'),1)<?)
+ AND NOT EXISTS(SELECT 1 FROM sync_heads WHERE owner=? AND installation=? AND sequence>=?)`).bind(owner,r.value.id,String(r.value.version||1),JSON.stringify(r.value),stamp,owner,b.installationId,r.value.id,b.sequence,r.value.version||1,owner,b.installationId,b.sequence));
+ }
  statements.push(db.prepare(`INSERT INTO sync_heads VALUES(?,?,?,?,?) ON CONFLICT(owner,installation) DO UPDATE SET sequence=excluded.sequence,digest=excluded.digest,updated=excluded.updated WHERE sync_heads.sequence<excluded.sequence`).bind(owner,b.installationId,b.sequence,digest,stamp));
  await db.batch(statements);
  const accepted=await db.prepare('SELECT sequence,digest FROM sync_heads WHERE owner=? AND installation=?').bind(owner,b.installationId).first<{sequence:number;digest:string}>();

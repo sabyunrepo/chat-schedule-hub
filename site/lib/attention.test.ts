@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {attention} from './attention.ts';
+const now=Date.parse('2026-11-01T00:00:00Z');
+const event={id:'a',title:'A',start:'2026-11-02T09:00:00+09:00',end:'2026-11-02T10:00:00+09:00',participants:['me'],kind:'personal',status:'confirmed',evidence:[]} as const;
+const a={...event,participants:['me'],evidence:[]};
+assert.equal(attention([a,{...a,id:'b',start:'2026-11-02T09:30:00+09:00'}],[{id:'me',name:'나',isMe:true}],now).filter(x=>x.type==='overlap').length,1);
+assert.equal(attention([a,{...a,id:'b',start:a.end}],[{id:'me',name:'나',isMe:true}],now).filter(x=>x.type==='overlap').length,0);
+assert.equal(attention([a,{...a,id:'b'}],[{id:'me',name:'공유'}],now).filter(x=>x.type==='overlap').length,0);
+assert.equal(attention([{...a,needsReview:true,end:null}],[{id:'me',name:'나',isMe:true}],now).filter(x=>x.type==='review').length,1);
+console.log('attention: overlap, boundary, ownership, unknown-end passed');

@@ -116,7 +116,7 @@ class NaverReadOnly:
         try: self.client.logout()
         except (OSError, imaplib.IMAP4.error): pass
 
-    def page(self, since, limit=20):
+    def page(self, since, limit=20, after_uid=None, expected_validity=None):
         require(1 <= limit <= 20, 'pilot limit must be 1..20')
         typ, _ = self.client.select('INBOX', readonly=True)
         require(typ == 'OK', 'INBOX read-only selection failed')
@@ -124,9 +124,13 @@ class NaverReadOnly:
         require(validity and validity[0], 'missing UIDVALIDITY')
         typ, found = self.client.uid('search', None, 'SINCE', since.strftime('%d-%b-%Y'))
         require(typ == 'OK', 'IMAP search failed')
-        ids = found[0].split() if found and found[0] else []
+        ids = sorted(found[0].split(),key=int) if found and found[0] else []
+        if expected_validity and validity[0].decode()!=expected_validity:
+            after_uid=0
+        if after_uid is not None:ids=[uid for uid in ids if int(uid)>after_uid]
+        chosen=ids[:limit] if after_uid is not None else ids[-limit:]
         messages=[]; skipped=0
-        for uid in ids[-limit:]:
+        for uid in chosen:
             typ, meta = self.client.uid('fetch', uid, '(UID RFC822.SIZE)')
             require(typ == 'OK', 'IMAP metadata failed')
             size = re.search(rb'RFC822.SIZE (\d+)', b' '.join(x for x in meta if isinstance(x,bytes)))
@@ -145,7 +149,7 @@ class NaverReadOnly:
             if message: messages.append(message)
             else: skipped+=1
         return messages, dict(fetched=min(len(ids),limit), matched=len(ids), securityExcluded=skipped,
-                              uidValidity=validity[0].decode(), coverageComplete=False)
+                              uidValidity=validity[0].decode(), lastUid=int(chosen[-1]) if chosen else (after_uid or 0), hasMore=len(ids)>limit, coverageComplete=False)
 
 
 def store_mail(store, adapter, account, messages, provider, lower, upper):

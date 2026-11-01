@@ -62,3 +62,20 @@ class CalendarTests(unittest.TestCase):
         self.assertEqual(event['version'],3)
 
 if __name__=='__main__':unittest.main()
+
+class CalendarSyncTests(unittest.TestCase):
+ def test_token_only_after_complete_and_410_recovery(self):
+  from hub.sources.calendar_pilot import collect
+  class API:
+   fail=False;params=[]
+   def profile(self):return {'emailAddress':'test@example.com'}
+   def calendars(self):return [{'id':'calendar','primary':True}]
+   def get(self,service,route,params):
+    self.params.append(params)
+    if self.fail:raise ValueError('Google calendar HTTP 410')
+    return {'items':[],'nextSyncToken':'next'}
+  api=API();s=Store(':memory:');self.assertFalse(collect(s,api,'primary')['incremental'])
+  self.assertTrue(collect(s,api,'primary')['incremental']);self.assertNotIn('timeMin',api.params[-1])
+  api.fail=True
+  with self.assertRaises(ValueError):collect(s,api,'primary')
+  self.assertEqual(s.db.execute('SELECT count(*) FROM calendar_sync').fetchone()[0],0)
