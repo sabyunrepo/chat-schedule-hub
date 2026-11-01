@@ -1,6 +1,6 @@
 ---
 name: collect-schedules
-description: 카카오톡 Mac 앱과 Discord 웹의 지정 대화를 컴퓨터 유즈로 증분 수집하고 일정 허브에 반영한다. 실행 환경에 컴퓨터 유즈가 있어야 하며 방·기간이 지정되어야 한다.
+description: 카카오톡 Mac 앱과 Discord의 지정 대화를 컴퓨터 유즈로 증분 수집하고 일정 허브에 반영한다. 실행 환경에 컴퓨터 유즈가 있어야 하며 방·기간이 지정되어야 한다.
 ---
 
 # 일정 수집
@@ -36,3 +36,8 @@ Discord는 각 채널의 스레드 목록도 열고 스크롤한다. 참여 중�
 관련성은 일정뿐 아니라 비교 가능한 사실 주장·조건·정정도 포함한다. 답글 대상은 replyToRef:{targetId,identity}로 전달하며 화면에서 확인한 ID만 쓴다. 페이지 안의 참조 원문은 선별 결과와 무관하게 함께 보관한다. 밖에 있고 미보관이면 evidenceGaps로 보고하고 권한 범위 내 UI로 보완한다. 공백이 남으면 coverageVerified=true를 보내지 않는다.
 
 sourceLocator, editedAt, provenance, timestampPrecision, threadRef와 replyToRef는 확인된 값만 제공한다. 답글 연결이 달라지면 새 revision으로 남긴다. 선택 규칙 버전이 변경된 미완료 실행은 begin 입력에 restart:true를 넣고 지정 범위를 처음부터 재관찰한다. 기존 근거는 유지되지만 버렸던 원문은 UI를 다시 읽어야 복구할 수 있다. 동일 batchId는 기존 처리 결과 반환이므로 새 관찰에는 새 batchId를 사용한다.
+
+
+## Discord 정식 봇 전환
+
+사용자가 봇 수집으로 전환했다. Discord 웹 수동 순회를 전체로 확대하지 않는다. discord-bot 어댑터는 아직 구현 전이므로 현재 `sources`에 없는 경로를 실행한 척하지 않는다. 상세는 docs/DISCORD_BOT_PLAN.md와 docs/sources/discord-bot.md를 따른다. 카톡은 기존 UI 경로를 유지한다. 봇 설치/Message Content/서버 allowlist 확인 후 한 채널 파일럿을 먼저 검증한다.
