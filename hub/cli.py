@@ -5,13 +5,16 @@ from .core import Store, REGISTRY
 from .providers import providers
 
 def main():
-    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
+    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','select-ingest','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
     if args.command=='sources': print(json.dumps(list(REGISTRY.adapters.values()),ensure_ascii=False)); return
     path=os.environ.get('HUB_DB',str(Path.home()/'Library/Application Support/ChatScheduleHub/hub.sqlite'))
     store=Store(path); data=json.load(sys.stdin) if args.command not in ['pending','snapshot'] else {}
     if args.command=='register': store.register_target(**data); result={'registered':data['target']}
     elif args.command=='begin': result=store.begin(data['target'])
     elif args.command=='ingest': result=store.ingest(data)
+    elif args.command=='select-ingest':
+        from .selection import select_ingest
+        result=select_ingest(store,data,providers.create(data.get('provider','openai-decisions')),data.get('context',''))
     elif args.command=='pending': result=store.pending()
     elif args.command=='snapshot': result=store.snapshot()
     elif args.command=='person':

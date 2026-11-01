@@ -35,6 +35,9 @@ class Store:
         self.db.execute('PRAGMA foreign_keys=ON')
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS batch_inputs(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS selection_cache(id TEXT PRIMARY KEY, decision TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS observations(id TEXT PRIMARY KEY, target TEXT NOT NULL, fingerprint TEXT NOT NULL, retained INTEGER NOT NULL, observed TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS targets(id TEXT PRIMARY KEY, adapter TEXT NOT NULL, connection TEXT NOT NULL, label TEXT NOT NULL, config TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY, target TEXT NOT NULL REFERENCES targets(id), identity TEXT NOT NULL, fingerprint TEXT NOT NULL, payload TEXT NOT NULL, observed TEXT NOT NULL, UNIQUE(target,identity));
         CREATE TABLE IF NOT EXISTS revisions(id TEXT PRIMARY KEY, message TEXT NOT NULL REFERENCES messages(id), fingerprint TEXT NOT NULL, payload TEXT NOT NULL, observed TEXT NOT NULL, UNIQUE(message,fingerprint));
@@ -66,11 +69,24 @@ class Store:
         rid=str(uuid.uuid4()); stamp=now()
         with self.db: self.db.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,?,?,?)',(rid,target,'active','{}',boundary[0] if boundary else '[]','[]',None,stamp,stamp))
         return dict(self.db.execute('SELECT * FROM runs WHERE id=?',(rid,)).fetchone())
-    def ingest(self, batch):
+    def validate_messages(self, batch):
+        from datetime import datetime
+        target=self.db.execute('SELECT config FROM targets WHERE id=?',(batch['targetId'],)).fetchone()
+        require(target,'unknown target')
+        config=json.loads(target[0])
+        for i,m in enumerate(batch['messages']):
+            require(isinstance(m.get('text'),str) and len(m['text'])<=100000,'invalid message')
+            require(m.get('observedAt'),'observation time required')
+            require(m.get('originId') or (m.get('occurrenceKey') and m.get('identityQuality')=='verified-anchor'),'ambiguous identity')
+            if m.get('sentAt'): require(datetime.fromisoformat(config['since'])<=datetime.fromisoformat(m['sentAt'])<=datetime.fromisoformat(config['until']),'outside selected range')
+
+    def ingest(self, batch, selection=None):
         """UI host supplies an observed page, never a hidden service API response."""
         require(batch.get('schemaVersion')==1,'unsupported batch schema')
         previous=self.db.execute('SELECT result FROM batches WHERE id=?',(batch['batchId'],)).fetchone()
         if previous:
+            recorded=self.db.execute('SELECT fingerprint FROM batch_inputs WHERE id=?',(batch['batchId'],)).fetchone()
+            require(not recorded or recorded[0]==digest(batch),'batch payload changed')
             original=self.db.execute('SELECT run FROM batches WHERE id=?',(batch['batchId'],)).fetchone()[0]
             require(original==batch['runId'],'batch id collision')
             return json.loads(previous[0])
@@ -83,7 +99,7 @@ class Store:
         config=json.loads(target['config'])
         seen=json.loads(run['seen']); baseline=json.loads(run['baseline']); identities=[]; new=0; changed=0
         with self.db:
-            for m in batch['messages']:
+            for i,m in enumerate(batch['messages']):
                 require(isinstance(m.get('text'),str) and len(m['text'])<=100000,'invalid message')
                 require(m.get('observedAt'),'observation time required')
                 # Host must preserve a verified occurrence key for messages without native IDs.
@@ -93,12 +109,19 @@ class Store:
                     require(datetime.fromisoformat(config['since'])<=datetime.fromisoformat(m['sentAt'])<=datetime.fromisoformat(config['until']), 'outside selected range')
                 fingerprint=digest({k:m.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind']})
                 mid=digest([run['target'],identity]); rid=digest([mid,fingerprint]); identities.append(mid)
+                if selection is not None:
+                    retain=i in selection['keep']
+                    self.db.execute('INSERT OR REPLACE INTO observations VALUES(?,?,?,?,?)',(mid,run['target'],fingerprint,int(retain),m['observedAt']))
+                    self.db.execute('INSERT OR REPLACE INTO selection_cache VALUES(?,?)',(selection['keys'][i],json.dumps(selection['decisions'][i])))
+                    if not retain: continue
                 old=self.db.execute('SELECT fingerprint FROM messages WHERE id=?',(mid,)).fetchone()
                 if old and old[0]==fingerprint: continue
                 payload=json.dumps(m,ensure_ascii=False)
                 self.db.execute('INSERT INTO messages VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint,payload=excluded.payload,observed=excluded.observed',(mid,run['target'],identity,fingerprint,payload,m['observedAt']))
                 self.db.execute('INSERT OR IGNORE INTO revisions VALUES(?,?,?,?,?)',(rid,mid,fingerprint,payload,m['observedAt']))
                 self.db.execute('INSERT OR IGNORE INTO jobs(id,revision) VALUES(?,?)',(rid,rid))
+                if selection is not None:
+                    self.db.execute('UPDATE jobs SET result=? WHERE id=?',(json.dumps(selection['decisions'][i]),rid))
                 new+=int(old is None); changed+=int(old is not None)
             # Require three consecutive anchors, not a single repeated word or timestamp.
             boundary=False
@@ -116,11 +139,13 @@ class Store:
             if complete:
                 self.db.execute('INSERT INTO boundaries VALUES(?,?,?) ON CONFLICT(target) DO UPDATE SET anchors=excluded.anchors,updated=excluded.updated',(run['target'],json.dumps(seen or baseline),now()))
             result=dict(new=new,changed=changed,stopReason=reason,complete=complete,runId=run['id'])
+            if selection is not None: result['selection']=selection['metrics']
             self.db.execute('INSERT INTO batches VALUES(?,?,?)',(batch['batchId'],run['id'],json.dumps(result)))
+            self.db.execute('INSERT INTO batch_inputs VALUES(?,?)',(batch['batchId'],digest(batch)))
         return result
     def pending(self, limit=50):
-        rows=self.db.execute("SELECT j.id,r.payload,m.target FROM jobs j JOIN revisions r ON j.revision=r.id JOIN messages m ON r.message=m.id WHERE j.state IN ('pending','failed') ORDER BY r.observed,j.id LIMIT ?",(min(limit,100),)).fetchall()
-        return [dict(id=r['id'],target=r['target'],message=json.loads(r['payload'])) for r in rows]
+        rows=self.db.execute("SELECT j.id,j.result,r.payload,m.target FROM jobs j JOIN revisions r ON j.revision=r.id JOIN messages m ON r.message=m.id WHERE j.state IN ('pending','failed') ORDER BY r.observed,j.id LIMIT ?",(min(limit,100),)).fetchall()
+        return [dict(id=r['id'],target=r['target'],message=json.loads(r['payload']),decision=json.loads(r['result']) if r['result'] else None) for r in rows]
     def apply_event(self, command):
         require(command['operationId'] and command['evidence'],'event evidence required')
         previous=self.db.execute('SELECT id FROM changes WHERE id=?',(command['operationId'],)).fetchone()
