@@ -14,17 +14,25 @@ def parse_window(state):
     require(table is not None,'message table not found')
     rows=[]
     for block in re.split(r'\n?\t{3}\d+ row[^\n]*\n',table[1])[1:]:
-        date=re.search(r'Help: (\d{4})\. (\d+)\. (\d+)\.,[^\n]*\n(오전|오후) (\d+):(\d+)',block)
+        # Kakao exposes either Value: 오후 2:51 or an unread count followed by a time line.
+        date=re.search(r'Help: (\d{4})\. (\d+)\. (\d+)\., Value: (?:\d+\n)?(오전|오후) (\d+):(\d+)',block)
         sent=None
         if date:
             y,mo,d,amp,h,minute=date.groups()
             sent=datetime(int(y),int(mo),int(d),int(h)%12+(12 if amp=='오후' else 0),int(minute),tzinfo=timezone(timedelta(hours=9))).isoformat()
         text=[]
-        for line in block.splitlines():
-            line=re.sub(r'^\s*\d+ ','',line).strip()
+        include_continuation=False
+        for raw in block.splitlines():
+            element=re.match(r'^\t+\d+ (.*)$',raw)
+            if not element:
+                if include_continuation:text.append(raw.rstrip())
+                continue
+            line=element[1].strip()
+            include_continuation=False
             if not line or re.match(r'^(셀|버튼|이미지|link |스크롤|(?:텍스트|text) Help:)',line):continue
             line=re.sub(r'^(텍스트 엔트리 영역|텍스트|text) ','',line)
             if line.isdigit():continue # unread count, never message identity
+            include_continuation=True
             text.append(line)
         if text:
             rows.append({'text':'\n'.join(text),'sentAt':sent,'authorRef':None})
