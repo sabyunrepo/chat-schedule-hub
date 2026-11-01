@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {runChat,codysseyProvider,chatInput,searchArgs,reviewArgs,type Message} from '../lib/chat-contract.ts';
+import {runChat,resolveReviewItem,codysseyProvider,chatInput,searchArgs,reviewArgs,type Message} from '../lib/chat-contract.ts';
 test('tool results feed the next model request; proposals do not execute a write',async()=>{
  const messages:Message[]=[{role:'user',content:'일정 확인'}];let rounds=0,executed=0;
  const provider={complete:async()=>++rounds===1?{role:'assistant' as const,content:null,tool_calls:[{id:'one',type:'function' as const,function:{name:'schedule_search',arguments:'{"onlyMe":true}'}}]}:{role:'assistant' as const,content:'조회 완료'}};
@@ -23,4 +23,12 @@ test('contract rejects foreign owner and arbitrary review states; bounded query'
 test('Codyssey key stays in request header and provider errors are sanitized',async()=>{
  let sent=false;const provider=codysseyProvider('secret',async(url,init)=>{assert.equal(url,'https://copa.codyssey.kr/v1/chat/completions');assert.equal((init?.headers as Record<string,string>).Authorization,'Bearer secret');assert.ok(!String(init?.body).includes('secret'));sent=true;return new Response('secret internal error',{status:500})});
  await assert.rejects(provider.complete([],new AbortController().signal),/모델 연결/);assert.equal(sent,true);
+});
+
+test('review proposals resolve a unique event reference but reject ambiguous event matches',()=>{
+ const review={id:'review:event',events:[{id:'event'}]},change={id:'change:event',events:[{id:'event'}]};
+ assert.equal(resolveReviewItem([review],'event'),review);
+ assert.equal(resolveReviewItem([review,change],'event'),undefined);
+ assert.equal(resolveReviewItem([review,change],'review:event'),review);
+ assert.equal(resolveReviewItem([review],'foreign'),undefined);
 });

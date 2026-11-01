@@ -15,7 +15,7 @@ export const chatTools=[
  fn('schedule_undated','날짜 미정 일정을 조회합니다. 날짜 미정 질문에는 이 도구를 사용합니다. 제목에 미정이 없어도 찾습니다.',{kind:{type:'string',enum:['all','work','crime','personal']},onlyMe:{type:'boolean'}},['kind','onlyMe']),
  fn('schedule_get','일정 하나의 최신 상세·판단 근거를 읽습니다.',{id:{type:'string'}},['id']),
  fn('schedule_attention','확인함의 미확인·추적 항목을 읽습니다.',{},[]),
- fn('propose_review','사용자가 요청한 확인 또는 추적 변경안을 만듭니다. 아직 저장하지 않으며 사용자가 적용 버튼을 눌러야 합니다.',{id:{type:'string'},state:{type:'string',enum:['acknowledged','tracking']},comment:{type:'string'}},['id','state','comment'])
+ fn('propose_review','사용자가 요청한 확인 또는 추적 변경안을 만듭니다. 먼저 schedule_attention으로 항목 id를 조회하세요. 일정 id와 확인함 항목 id는 다릅니다. 아직 저장하지 않으며 사용자가 적용 버튼을 눌러야 합니다.',{id:{type:'string'},state:{type:'string',enum:['acknowledged','tracking']},comment:{type:'string'}},['id','state','comment'])
 ];
 export interface ChatProvider {complete(messages:Message[],signal:AbortSignal):Promise<Message>}
 export function codysseyProvider(key:string,request:typeof fetch=fetch):ChatProvider{return {async complete(messages,signal){
@@ -37,3 +37,5 @@ export async function runChat(provider:ChatProvider,messages:Message[],execute:(
  }
  throw Error('조회가 길어졌습니다. 기간이나 대상을 좁혀주세요.');
 }
+
+export function resolveReviewItem<T extends {id:string;events:{id:string}[]}>(items:T[],id:string):T|undefined{const exact=items.find(i=>i.id===id);if(exact)return exact;const matches=items.filter(i=>i.events.some(e=>e.id===id));return matches.length===1?matches[0]:undefined;}
