@@ -16,9 +16,10 @@ class AutomationTests(unittest.TestCase):
   with patch('hub.site_access.subprocess.run',return_value=Mock(returncode=1,stdout=b'private')):
    with self.assertRaises(RuntimeError):service_token('https://example.com')
  def test_push_ssrf_validation(self):
-  for url in ['http://fcm.googleapis.com','https://localhost','https://fcm.googleapis.com.evil.test','https://x:pw@fcm.googleapis.com']:
+  for url in ['http://fcm.googleapis.com','https://localhost','https://jmt17.google.com.evil.test/fcm/send/x','https://jmt17.google.com/other','https://fcm.googleapis.com.evil.test','https://x:pw@fcm.googleapis.com']:
    self.assertFalse(allowed_endpoint(url))
   self.assertTrue(allowed_endpoint('https://web.push.apple.com/123'))
+  self.assertTrue(allowed_endpoint('https://jmt17.google.com/fcm/send/fixture'))
  def test_vapid_setup_reuses_key_and_is_private(self):
   with tempfile.TemporaryDirectory() as root:
    root=Path(root);first=public_key(root,create=True)

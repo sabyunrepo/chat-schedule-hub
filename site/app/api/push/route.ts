@@ -4,6 +4,10 @@ import {subscription} from '../../../lib/push';
 export async function GET(){try{const uid=await user();const row=await env.DB!.prepare('SELECT public_key FROM push_settings WHERE owner=?').bind(uid).first<{public_key:string}>();return json({publicKey:row?.public_key??null});}catch{return json({error:'unauthorized'},401)}}
 export async function POST(r:Request){try{
  if(!sameOrigin(r))return json({error:'origin'},403);const uid=await user(),b=await body(r),db=env.DB!;
+ if(b.action==='status'){
+  if(typeof b.endpoint!=='string'||b.endpoint.length>3000)return json({error:'invalid'},400);
+  const row=await db.prepare('SELECT id FROM push_subscriptions WHERE owner=? AND id=?').bind(uid,await hash(b.endpoint)).first();return json({registered:!!row});
+ }
  if(b.action==='remove'){
   const s=subscription.parse(b.subscription),id=await hash(s.endpoint);
   await db.batch([db.prepare('DELETE FROM push_subscriptions WHERE owner=? AND id=?').bind(uid,id),db.prepare('DELETE FROM push_deliveries WHERE owner=? AND subscription=?').bind(uid,id)]);return json({ok:true});

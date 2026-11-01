@@ -9,6 +9,7 @@ def allowed_endpoint(endpoint):
     u = urlsplit(endpoint)
     h = u.hostname or ''
     return u.scheme == 'https' and not u.username and not u.password and not u.port and not u.fragment and (
+        (h == 'jmt17.google.com' and u.path.startswith('/fcm/send/')) or
         h in ('fcm.googleapis.com', 'web.push.apple.com', 'updates.push.services.mozilla.com') or
         any(h.endswith(s) for s in ('.push.apple.com', '.push.services.mozilla.com', '.notify.windows.com')))
 

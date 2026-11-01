@@ -15,6 +15,6 @@ test('tool errors do not expose private exceptions',async()=>{
  assert.equal((result as any).result.isError,true);assert.ok(!JSON.stringify(result).includes('secret-token'));
 });
 test('push endpoints reject SSRF and suffix impersonation',()=>{
- for(const x of ['http://fcm.googleapis.com/x','https://localhost/x','https://fcm.googleapis.com.attacker.test/x','https://user:pw@fcm.googleapis.com/x','https://fcm.googleapis.com:444/x'])assert.equal(allowedPushEndpoint(x),false);
- for(const x of ['https://fcm.googleapis.com/fcm/send/x','https://web.push.apple.com/x','https://updates.push.services.mozilla.com/x'])assert.equal(allowedPushEndpoint(x),true);
+ for(const x of ['http://fcm.googleapis.com/x','https://localhost/x','https://jmt17.google.com.evil.test/fcm/send/x','https://jmt17.google.com/other','https://fcm.googleapis.com.attacker.test/x','https://user:pw@fcm.googleapis.com/x','https://fcm.googleapis.com:444/x'])assert.equal(allowedPushEndpoint(x),false);
+ for(const x of ['https://fcm.googleapis.com/fcm/send/x','https://web.push.apple.com/x','https://jmt17.google.com/fcm/send/x','https://updates.push.services.mozilla.com/x'])assert.equal(allowedPushEndpoint(x),true);
 });
