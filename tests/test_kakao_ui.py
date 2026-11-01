@@ -5,6 +5,20 @@ def window(body, title='Test', position='.3'):
     return f'Window: "{title}", App: 카카오톡.\n\t\t2 표\n\t\t\t3 row (selectable)\n{body}\n\t\t31 스크롤 막대 (settable, float) {position}'
 
 class KakaoUiTests(unittest.TestCase):
+    def test_open_chat_sender_is_not_body(self):
+        s=window('\t\t\t\t4 버튼 프로필\n\t\t\t\t5 텍스트 Help: 2026. 10. 27., Value: 1\n오후 3:21\n\t\t\t\t6 이미지 badge openchat profile\n\t\t\t\t7 텍스트 시험작성자\n\t\t\t\t8 이미지\n\t\t\t\t9 텍스트 엔트리 영역 일정 후보\n1월\n6 12 13')
+        row=parse_window(s)['rows'][0]
+        self.assertEqual(row['authorDisplayName'],'시험작성자')
+        self.assertEqual(row['text'],'일정 후보\n1월\n6 12 13')
+
+    def test_media_only_row_preserves_gap(self):
+        s=window('\t\t\t\t4 버튼 프로필\n\t\t\t\t5 텍스트 시험작성자\n\t\t\t\t6 이미지')
+        self.assertEqual(parse_window(s)['rows'],[None])
+
+    def test_missing_time_is_not_borrowed_from_neighbor(self):
+        s=window('\t\t\t\t4 버튼 프로필\n\t\t\t\t5 텍스트 시험작성자\n\t\t\t\t6 이미지\n\t\t\t\t7 텍스트 엔트리 영역 언제 볼까요')
+        self.assertIsNone(parse_window(s)['rows'][0]['sentAt'])
+
     def test_empty_trailing_row_is_not_message_text(self):
         s=window('\t\t\t\t5 text 실제 메시지\n\t\t\t30 row (selectable)')
         self.assertEqual(parse_window(s)['rows'][0]['text'],'실제 메시지')

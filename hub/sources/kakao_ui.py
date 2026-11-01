@@ -21,6 +21,16 @@ def parse_window(state):
             y,mo,d,amp,h,minute=date.groups()
             sent=datetime(int(y),int(mo),int(d),int(h)%12+(12 if amp=='오후' else 0),int(minute),tzinfo=timezone(timedelta(hours=9))).isoformat()
         text=[]
+        author=None
+        sender_line=None
+        if '버튼 프로필' in block:
+            # Open-chat badges put the sender in a separate plain text element.
+            # Only inspect header elements before the actual message body.
+            header=block.split('텍스트 엔트리 영역',1)[0]
+            candidates=[(m.group(0),m.group(1).strip()) for m in
+                        re.finditer(r'^\t+\d+ (?:텍스트|text) ([^\n]+)',header,re.M)
+                        if not m.group(1).startswith('Help:') and not m.group(1).strip().isdigit()]
+            if candidates: sender_line,author=candidates[-1]
         # Some schedule cards expose their entire body after the timestamp in
         # the Help/Value element. A plain sender name alone is not a message.
         if date:
@@ -29,6 +39,7 @@ def parse_window(state):
                 text.append(suffix)
         include_continuation=False
         for raw in block.splitlines():
+            if raw==sender_line: continue
             element=re.match(r'^\t+\d+ (.*)$',raw)
             if not element:
                 if include_continuation:text.append(raw.rstrip())
@@ -43,10 +54,14 @@ def parse_window(state):
         if text:
             row={'text':'\n'.join(text),'sentAt':sent,'authorRef':None}
             if date:
-                author=block[date.end():].split('\n',1)[0].strip()
-                if author and not re.search(r'일정 확인하기|참석여부 응답하기|일정이 (?:취소|변경)|님의 글을 공유',author):
-                    row['authorDisplayName']=author
+                suffix=block[date.end():].split('\n',1)[0].strip()
+                if suffix and not re.search(r'일정 확인하기|참석여부 응답하기|일정이 (?:취소|변경)|님의 글을 공유',suffix):
+                    author=suffix
+            if author: row['authorDisplayName']=author
             rows.append(row)
+        elif re.search(r'^\t+\d+ 이미지\s*$',block,re.M):
+            # Media-only rows are real gaps, not adjacency between text messages.
+            rows.append(None)
     bar=re.search(r'스크롤 막대 \(settable, float\) ([\d.]+)',state)
     return {'title':title[1],'rows':rows,'scrollPosition':float(bar[1]) if bar else None}
 
