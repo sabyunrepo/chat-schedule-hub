@@ -11,8 +11,10 @@ def require(ok, message):
 
 def message_fingerprint(message):
     # Reply/provenance changes can change the meaning of identical short text.
-    return digest({k:message.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind',
-        'replyToRef','threadRef','sourceLocator','editedAt','timestampPrecision','provenance']})
+    fields={k:message.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind',
+        'replyToRef','threadRef','sourceLocator','editedAt','timestampPrecision','provenance']}
+    if 'structuredPayload' in message: fields['structuredPayload']=message['structuredPayload']
+    return digest(fields)
 
 
 class SourceRegistry:
@@ -35,6 +37,14 @@ REGISTRY.register(dict(id='discord-bot', label='Discord 봇', transport='officia
     contractVersion=1, adapterVersion='0.2.0', driver='discord.py-gateway',
     capabilities=dict(history='bounded-page', resume='gateway-resume-and-bounded-repair', edits='raw-event-refetch',
                       deletions='explicit-only', threads='active-and-explicit-target', attachments='metadata-only')))
+
+
+for key, label, transport in [('gmail-api', 'Gmail', 'official-api'), ('naver-imap', '네이버 메일', 'official-protocol'), ('google-calendar-api', 'Google Calendar', 'official-api')]:
+    REGISTRY.register(dict(id=key, label=label, transport=transport, contractVersion=1,
+        adapterVersion='0.1.0', driver='read-only-bounded-pilot',
+        capabilities=dict(history='bounded-inbox-pilot', resume='pilot-replay-only',
+                          edits='observed-only' if key == 'google-calendar-api' else 'unsupported', deletions='unsupported', threads='metadata-only', attachments='metadata-only')))
+REGISTRY.adapters['google-calendar-api']['capabilities']['history']='bounded-calendar-pilot'
 
 
 class Store:

@@ -1,6 +1,6 @@
 # 수집 경로 확장 계약 v1 (설계)
 
-이 문서는 구현할 공통 계약이다. 아래 인터페이스·레지스트리·검증 도구는 아직 구현되지 않았다. 초기 구현은 카톡 Mac 앱과 Discord 웹이며, 이후 API·파일 가져오기 등을 같은 파이프라인으로 연결할 수 있다.
+이 문서는 공통 설계 계약이다. SourceRegistry와 공통 저장·선별은 hub/core.py에 구현되어 있다. 아래의 모든 인터페이스가 일괄 구현된 것은 아니다. 현재 카톡 UI와 Discord 봇 경로가 있으며, 새 메일·캘린더 경로의 구현 상태는 [연결 계획](MAIL_CALENDAR_PLAN.md)을 따른다.
 
 ## 1. 연결 구조와 경계
 
@@ -20,7 +20,7 @@ SourceAdapter는 허용된 소스를 관찰하고 원문·출처·수집 범위�
 각 등록 정보에 다음을 선언한다.
 
 - adapterId, adapterVersion, contractVersion, displayName
-- transport: native-ui | browser-ui | official-api | file-import
+- transport: native-ui | browser-ui | official-api | official-protocol | file-import
 - 지원 플랫폼/앱 버전, 필요한 호스트 도구, 설정 스키마, 비밀 참조 키
 - 안정적 메시지 ID 여부, 시간 정밀도, 순서 보장 범위
 - resume 방식: native-cursor | observed-anchor | file-position | none
@@ -100,7 +100,7 @@ stopReason: known-boundary | requested-range-reached | explicit-source-end | bud
 1. 대상·전송 방식·수집 범위·플랫폼을 정의하고 현재 공식 문서 및 허용된 UI를 조사한다.
 2. docs/sources/<adapter-id>.md에 지원 범위, capability, ID/시간 규칙, 권한/부작용, 중단·재개, 한계와 근거를 작성한다.
 3. 합성 또는 비식별 샘플로 MessageObservation 매핑과 체크포인트 설계를 검증한다.
-4. 어댑터와 설정 스키마를 작성하고 SourceRegistry에 등록한다. 런타임 등록은 미래 구현이며 현재 문서 파일 추가만으로 작동하지 않는다.
+4. 어댑터와 설정 스키마를 작성하고 SourceRegistry에 등록한다. SourceRegistry 런타임 등록이 필요하며 문서 파일 추가만으로 작동하지 않는다.
 5. 연결 온보딩에 probe·대상 선택·허용 범위·상태 표시를 연결한다. capability에 없는 설정은 제공하지 않는다.
 6. 공통 저장/분석/동기화 파이프라인을 통과시킨다. 소스별 AI/DB/화면 파이프라인을 복제하지 않는다.
 7. 계약 검증과 작은 실제 범위 검증을 구분해 수행한다. 기존 카톡·Discord 경로 회귀를 확인한다.

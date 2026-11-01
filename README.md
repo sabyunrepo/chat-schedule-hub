@@ -1,10 +1,10 @@
 # 모아 · Chat Schedule Hub
 
-0.1.1 개발 미리보기: 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
+0.2.0 개발 미리보기: Gmail·네이버·Google Calendar 연결 파일럿과 연결 전용 스킬을 추가했습니다. [변경 이력](CHANGELOG.md)을 참고하세요. 기존 0.1.1에서는 카카오톡 UI 오류 복구 절차, 전체 AX 정규화와 `kakao-observe` 입력 경로를 추가했습니다. [복구 안내](docs/KAKAO_UI_RECOVERY.md)를 참고하세요. 실제 전체방·30일 수집과 독립 GUI 데몬은 아직 완료되지 않았습니다. Discord 상시 봇 상태는 [운영 기록](docs/CONTINUOUS_COLLECTION.md)을 따릅니다.
 
 대화에서 일정을 정리하는 Codex 플러그인과 개인 일정 조회용 웹앱입니다. 현재 개발 미리보기입니다.
 
-- 카카오톡 Mac·Discord 웹 수집을 위한 호스트 실행 스킬
+- 카카오톡 Mac UI·Discord 공식 봇 수집 및 메일·캘린더 연결 스킬
 - SQLite 증분 저장, 중복 제거, 중간 실패 재개, 메시지 수정 이력
 - 교체 가능한 OpenAI Decisions 판단 공급자
 - 대시보드·사람별 간트·크라임씬 탭과 서버 저장 인물 필터
@@ -29,8 +29,12 @@ Codex 플러그인의 `skills/collect-schedules/SKILL.md`를 실행 지침으로
 
 [최종 계획](PLAN.md), [프로젝트 지침](AGENTS.md), [수집 어댑터 계약](docs/SOURCE_ADAPTER_CONTRACT.md)을 기준으로 구현합니다. 새 수집 경로 추가 스킬은 `skills/add-collection-source/`에 있습니다.
 
-현재 합성 데이터 기반 저장 계층 테스트 28개와 웹앱 TypeScript 검사·빌드를 통과했습니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
+현재 Python 테스트 75개를 통과했습니다. 웹앱은 이번 변경 대상이 아니며 이전 TypeScript 검사·빌드 결과와 구분합니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
 
 공개 저장소와 개인 사이트의 공개 범위는 별개입니다. 샘플은 합성 데이터입니다. 배포 조건과 제3자 라이선스는 [LICENSE.md](LICENSE.md)를 확인하세요.
 
 기본 수집 경로는 `select-ingest`이며 저장 전에 Decisions로 관련성과 의도를 함께 판단합니다. 전체 수집은 파일럿 검증 후 확대합니다. [파일럿 결과](docs/PILOT_REPORT.md)에 실측·한계·확대 조건을 기록했습니다.
+
+## Gmail·네이버 메일·Google Calendar
+
+세 경로의 읽기 인증과 제한 파일럿을 지원합니다. [실행 안내](docs/MAIL_CALENDAR_RUNBOOK.md)를 따르세요. 상시 증분 수집·메일 일정 추출·새 데이터의 Sites 동기화는 미완료입니다.

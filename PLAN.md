@@ -2,6 +2,8 @@
 
 Current runtime status (supersedes earlier pending Gateway status): [2026-11-01 continuous collection](docs/CONTINUOUS_COLLECTION.md).
 
+새 소스 연결 계획: [Gmail·네이버 메일·Google Calendar](docs/MAIL_CALENDAR_PLAN.md). 카카오톡 추가 수집은 사용자 요청으로 중단. 새 경로는 인증·제한 파일럿 완료, 상시 증분 수집은 미구현. [실행 안내](docs/MAIL_CALENDAR_RUNBOOK.md)를 따른다.
+
 작성일: 2026-11-01
 상태: 구현 진행 중. 저장·선택 수집 테스트 28개 및 웹앱 타입 검사·빌드 통과. Decisions 합성 일정 분류 실호출 성공. 비공개 Sites 배포 성공. 실제 30일 수집·실기기 검증은 미완료.
 프로젝트 경로: /Users/sabyun/chat-schedule-hub
