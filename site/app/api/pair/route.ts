@@ -1,0 +1,2 @@
+import {env} from 'cloudflare:workers';import {user,json,sameOrigin,hash} from '../../../lib/http';
+export async function POST(r:Request){try{if(!sameOrigin(r))return json({error:'origin'},403);const uid=await user();const token=crypto.randomUUID()+crypto.randomUUID();await env.DB!.batch([env.DB!.prepare('DELETE FROM pairings WHERE owner=?').bind(uid),env.DB!.prepare('INSERT INTO pairings VALUES(?,?,?)').bind(await hash(token),uid,new Date().toISOString())]);return json({token});}catch{return json({error:'연결 키 생성 실패'},400)}}

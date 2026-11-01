@@ -1,0 +1,2 @@
+import {env} from 'cloudflare:workers';import {user,json} from '../../../lib/http';
+export async function GET(){try{const uid=await user();const row=await env.DB!.prepare('SELECT payload,updated FROM snapshots WHERE owner=?').bind(uid).first<{payload:string;updated:string}>();return json(row?{data:JSON.parse(row.payload),updated:row.updated}:{data:null});}catch{return json({error:'로그인이 필요합니다.'},401)}}

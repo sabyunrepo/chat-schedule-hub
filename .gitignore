@@ -1,0 +1,13 @@
+.env*
+!.env.example
+*.sqlite*
+__pycache__/
+node_modules/
+.next/
+dist/
+release/
+.runtime/
+.wrangler/
+
+# Personal Sites identity (configure per installation)
+site/.openai/hosting.json
