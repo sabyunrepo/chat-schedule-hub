@@ -10,7 +10,7 @@ def main():
     path=os.environ.get('HUB_DB',str(Path.home()/'Library/Application Support/ChatScheduleHub/hub.sqlite'))
     store=Store(path); data=json.load(sys.stdin) if args.command not in ['pending','snapshot'] else {}
     if args.command=='register': store.register_target(**data); result={'registered':data['target']}
-    elif args.command=='begin': result=store.begin(data['target'])
+    elif args.command=='begin': result=store.begin(data['target'],restart=data.get('restart') is True)
     elif args.command=='ingest': result=store.ingest(data)
     elif args.command=='select-ingest':
         from .selection import select_ingest

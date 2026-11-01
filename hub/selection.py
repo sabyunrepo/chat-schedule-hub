@@ -1,13 +1,13 @@
 """Classify observed pages before retaining text; checkpoints remain transactional."""
 import json, time, re
-from .core import digest, require
+from .core import digest, require, message_fingerprint
 
-RULE_VERSION = 4
+RULE_VERSION = 5
 RELEVANCE_FLOOR = .1
 
 
 def fingerprint(message):
-    return digest({k:message.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind']})
+    return message_fingerprint(message)
 
 
 def select_ingest(store, batch, provider, context=''):
@@ -22,6 +22,9 @@ def select_ingest(store, batch, provider, context=''):
         require(not recorded or recorded[0]==digest(batch),'batch payload changed')
         return json.loads(previous[0])
     require(run['state']=='active','run not active')
+    prior=store.db.execute("SELECT result FROM batches WHERE run=? AND json_type(result,'$.selection') IS NOT NULL LIMIT 1",(batch['runId'],)).fetchall()
+    require(all('selection' not in json.loads(row[0]) or json.loads(row[0])['selection'].get('ruleVersion')==RULE_VERSION for row in prior),
+            'retention policy changed: begin with restart=true and reobserve the selected range')
     store.validate_messages(batch)
     started=time.perf_counter(); decisions={}; uncached=[]; cache_keys={}
     # Full page context is included in the key: changed neighbors re-evaluate short replies.
@@ -43,6 +46,7 @@ def select_ingest(store, batch, provider, context=''):
     for i,d in decisions.items():
         # Relevance is a separate binary criterion; class confidence is not relevance.
         if d.get('relevance',1)>RELEVANCE_FLOOR: keep.add(i)
+        if d.get('intent')=='review' or re.search(r'정정|착오|잘못|아니라|전달받|알고\s*있|변경|준비물|담당|마감',batch['messages'][i]['text']): keep.add(i)
         # High-recall guard for dates/deadlines and explicit changes; never a keyword-only reject.
         if re.search(r'(\d+\s*(?:시|시간|분|월|일|주)|오늘|내일|모레|이번\s*주|다음\s*주|요일|취소|불참|참석|참여|연기|확정|예약|일정|약속)',batch['messages'][i]['text']): keep.add(i)
         # Short invitations can have no date and be misclassified as casual chatter.
@@ -57,5 +61,31 @@ def select_ingest(store, batch, provider, context=''):
     # Previously retained evidence is never erased by a later classification.
     for i,m in enumerate(batch['messages']):
         if store.db.execute('SELECT 1 FROM messages WHERE id=?',(digest([batch['targetId'],m.get('originId') or m.get('occurrenceKey')]),)).fetchone():keep.add(i)
-    metrics={'observed':len(batch['messages']),'retained':len(keep),'discarded':len(batch['messages'])-len(keep),'apiCalls':int(bool(uncached)),'cacheHits':len(decisions)-len(uncached),'apiMs':round(api_ms,2),'classifyMs':round((time.perf_counter()-started)*1000,2)}
+    # Resolve explicit reply chains in-page, or report missing evidence for later backfill.
+    positions={(m.get('originId') or m.get('occurrenceKey')):i for i,m in enumerate(batch['messages'])}
+    pending=list(keep); visited=set(); gaps=[]
+    if batch.get('coverageVerified') is True:
+        # Earlier pages may still have missing references; a clean last page is insufficient.
+        rows=store.db.execute("SELECT identity,payload FROM messages WHERE target=? AND json_type(payload,'$.replyToRef')='object'",(batch['targetId'],))
+        for row in rows:
+            if row['identity'] in positions: continue  # Current observation supersedes old reference.
+            ref=json.loads(row['payload'])['replyToRef']
+            j=positions.get(ref['identity']) if ref['targetId']==batch['targetId'] else None
+            if j is not None:
+                if j not in keep: keep.add(j); pending.append(j)
+            elif not store.db.execute('SELECT 1 FROM messages WHERE id=?',(digest([ref['targetId'],ref['identity']]),)).fetchone(): gaps.append(ref)
+    while pending:
+        i=pending.pop()
+        if i in visited: continue
+        visited.add(i); ref=batch['messages'][i].get('replyToRef')
+        if not ref: continue
+        require(isinstance(ref,dict) and ref.get('targetId') and ref.get('identity'),'invalid reply reference')
+        j=positions.get(ref['identity']) if ref['targetId']==batch['targetId'] else None
+        if j is not None:
+            if j not in keep: keep.add(j); pending.append(j)
+        elif not store.db.execute('SELECT 1 FROM messages WHERE id=?',(digest([ref['targetId'],ref['identity']]),)).fetchone():
+            gaps.append(ref)
+    # A known text boundary does not establish coverage when relevant reply context is missing.
+    require(not gaps or batch.get('coverageVerified') is not True,'unresolved reply evidence prevents completion')
+    metrics={'observed':len(batch['messages']),'retained':len(keep),'discarded':len(batch['messages'])-len(keep),'evidenceGaps':gaps,'ruleVersion':RULE_VERSION,'apiCalls':int(bool(uncached)),'cacheHits':len(decisions)-len(uncached),'apiMs':round(api_ms,2),'classifyMs':round((time.perf_counter()-started)*1000,2)}
     return store.ingest(batch, selection={'keep':keep,'decisions':decisions,'keys':cache_keys,'metrics':metrics})

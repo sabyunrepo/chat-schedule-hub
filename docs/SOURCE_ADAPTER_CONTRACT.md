@@ -121,3 +121,10 @@ stopReason: known-boundary | requested-range-reached | explicit-source-end | bud
 어댑터는 화면에서 관찰한 최대 32개 메시지를 공통 select-ingest에 전달한다. AI를 서비스별 어댑터 안에 복제하지 않는다. 선택 저장에서도 전체 관찰 순서의 지문으로 경계를 계산한다. 관련 메시지와 맥락만 messages/revisions/jobs에 저장하고 제외 본문은 보관하지 않는다. 선택 결과·커서·경계는 같은 트랜잭션으로 커밋한다. API 실패는 커서 전진 없이 재관찰한다. 정확한 재개가 불가능한 UI는 anchor-lost로 보고한다.
 
 선별 캐시는 계정 범위 target, 원본/발생 ID, 본문 지문, 전체 페이지와 context의 지문, 공급자·모델·규칙 버전을 포함한다. 페이지가 달라지면 짧은 답변의 의미가 달라질 수 있어 재판정한다. 어댑터는 페이지 경계에서 답글/일정 맥락을 연결하고 누락된 맥락을 명시해야 한다.
+
+
+## 착오 검토 근거 확장
+
+런타임 replyToRef는 {targetId,identity}이며 identity는 해당 대상의 originId 또는 검증된 occurrenceKey다. 원문 ID를 추측하지 않는다. sourceLocator, editedAt, provenance, timestampPrecision, threadRef를 가능한 경우 보존한다. 메시지 의미를 바꾸는 메타데이터도 revision 지문에 포함한다.
+
+선택 규칙 v5는 일정과 사실·정정 근거를 보존한다. evidenceGaps에는 보관 메시지의 미확보 답글 참조가 포함된다. 이는 자동 원문 검색기가 구현됐다는 뜻이 아니다. 호스트가 UI로 보완해야 하며 공백이 남은 배치는 완료할 수 없다. 보존 규칙이 바뀌면 이전 완료 경계를 무효화하고 진행 중 실행은 명시적 restart로 재관찰한다.

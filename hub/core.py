@@ -9,6 +9,11 @@ def digest(value): return hashlib.sha256(json.dumps(value, sort_keys=True, ensur
 def require(ok, message):
     if not ok: raise ValueError(message)
 
+def message_fingerprint(message):
+    # Reply/provenance changes can change the meaning of identical short text.
+    return digest({k:message.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind',
+        'replyToRef','threadRef','sourceLocator','editedAt','timestampPrecision','provenance']})
+
 
 class SourceRegistry:
     def __init__(self): self.adapters = {}
@@ -45,6 +50,7 @@ class Store:
         CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, target TEXT NOT NULL REFERENCES targets(id), state TEXT NOT NULL, cursor TEXT NOT NULL, baseline TEXT NOT NULL, seen TEXT NOT NULL, reason TEXT, started TEXT NOT NULL, updated TEXT NOT NULL);
         CREATE UNIQUE INDEX IF NOT EXISTS one_active ON runs(target) WHERE state='active';
         CREATE TABLE IF NOT EXISTS boundaries(target TEXT PRIMARY KEY REFERENCES targets(id), anchors TEXT NOT NULL, updated TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS boundary_policies(target TEXT PRIMARY KEY REFERENCES targets(id), version INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY, run TEXT NOT NULL REFERENCES runs(id), result TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS events(id TEXT PRIMARY KEY, version INTEGER NOT NULL, payload TEXT NOT NULL, updated TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS changes(id TEXT PRIMARY KEY, event TEXT NOT NULL REFERENCES events(id), payload TEXT NOT NULL, created TEXT NOT NULL);
@@ -53,6 +59,7 @@ class Store:
         CREATE INDEX IF NOT EXISTS message_target ON messages(target,observed,id);
         CREATE INDEX IF NOT EXISTS pending_jobs ON jobs(state,id);
         CREATE INDEX IF NOT EXISTS pending_outbox ON outbox(sent,id);
+        CREATE INDEX IF NOT EXISTS batches_run ON batches(run);
         ''')
     def register_target(self, target, adapter, connection, label, config):
         REGISTRY.get(adapter)
@@ -60,12 +67,18 @@ class Store:
         existing = self.db.execute('SELECT adapter,connection FROM targets WHERE id=?',(target,)).fetchone()
         require(not existing or (existing['adapter']==adapter and existing['connection']==connection),'target identity changed')
         with self.db: self.db.execute('INSERT INTO targets VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET label=excluded.label,config=excluded.config',(target,adapter,connection,label,json.dumps(config)))
-    def begin(self, target):
+    def begin(self, target, restart=False):
         t=self.db.execute('SELECT * FROM targets WHERE id=?',(target,)).fetchone()
         require(t is not None,'unknown target')
         active=self.db.execute("SELECT * FROM runs WHERE target=? AND state='active'",(target,)).fetchone()
-        if active: return dict(active)
+        if active and not restart: return dict(active)
+        if active:
+            with self.db: self.db.execute("UPDATE runs SET state='superseded',reason='retention-policy-changed',updated=? WHERE id=?",(now(),active['id']))
         boundary=self.db.execute('SELECT anchors FROM boundaries WHERE target=?',(target,)).fetchone()
+        from .selection import RULE_VERSION
+        policy=self.db.execute('SELECT version FROM boundary_policies WHERE target=?',(target,)).fetchone()
+        # Unknown/older selection policies may have discarded newly valuable evidence.
+        if restart or not policy or policy[0] not in (0,RULE_VERSION): boundary=None
         rid=str(uuid.uuid4()); stamp=now()
         with self.db: self.db.execute('INSERT INTO runs VALUES(?,?,?,?,?,?,?,?,?)',(rid,target,'active','{}',boundary[0] if boundary else '[]','[]',None,stamp,stamp))
         return dict(self.db.execute('SELECT * FROM runs WHERE id=?',(rid,)).fetchone())
@@ -107,7 +120,7 @@ class Store:
                 require(identity and (m.get('originId') or m.get('identityQuality')=='verified-anchor'),'ambiguous identity: keep unresolved, do not merge')
                 if m.get('sentAt'):
                     require(datetime.fromisoformat(config['since'])<=datetime.fromisoformat(m['sentAt'])<=datetime.fromisoformat(config['until']), 'outside selected range')
-                fingerprint=digest({k:m.get(k) for k in ['text','authorRef','sentAt','attachments','observationKind']})
+                fingerprint=message_fingerprint(m)
                 mid=digest([run['target'],identity]); rid=digest([mid,fingerprint]); identities.append(mid)
                 if selection is not None:
                     retain=i in selection['keep']
@@ -138,6 +151,7 @@ class Store:
             self.db.execute('UPDATE runs SET state=?,cursor=?,seen=?,reason=?,updated=? WHERE id=?',('complete' if complete else 'active',json.dumps(batch.get('cursor',{})),json.dumps(seen),reason,now(),run['id']))
             if complete:
                 self.db.execute('INSERT INTO boundaries VALUES(?,?,?) ON CONFLICT(target) DO UPDATE SET anchors=excluded.anchors,updated=excluded.updated',(run['target'],json.dumps(seen or baseline),now()))
+                self.db.execute('INSERT OR REPLACE INTO boundary_policies VALUES(?,?)',(run['target'],selection['metrics']['ruleVersion'] if selection else 0))
             result=dict(new=new,changed=changed,stopReason=reason,complete=complete,runId=run['id'])
             if selection is not None: result['selection']=selection['metrics']
             self.db.execute('INSERT INTO batches VALUES(?,?,?)',(batch['batchId'],run['id'],json.dumps(result)))

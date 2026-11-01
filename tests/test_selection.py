@@ -67,3 +67,65 @@ class SelectionTests(unittest.TestCase):
         select_ingest(self.s,self.b,Fake({3:'schedule'}))
         item=next(j for j in self.s.pending() if j['message']['originId']=='3')
         self.assertEqual(item['decision']['intent'],'schedule')
+
+    def test_correction_and_distant_reply_evidence_retained(self):
+        self.b['messages'][6].update(text='정정합니다',replyToRef={'targetId':'t','identity':'0'})
+        select_ingest(self.s,self.b,Fake())
+        self.assertEqual({j['message']['originId'] for j in self.s.pending()},{'0','6'})
+
+    def test_missing_cross_room_evidence_blocks_completion(self):
+        self.b['messages'][6].update(text='정정합니다',replyToRef={'targetId':'other','identity':'0'})
+        self.b.update(stopReason='requested-range-reached',coverageVerified=True)
+        with self.assertRaisesRegex(ValueError,'unresolved reply'):
+            select_ingest(self.s,self.b,Fake())
+        self.assertEqual(len(self.s.pending()),0)
+        self.assertEqual(self.s.db.execute('SELECT count(*) FROM boundaries').fetchone()[0],0)
+        self.b.update(stopReason='budget-exhausted',coverageVerified=False)
+        result=select_ingest(self.s,self.b,Fake())
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['selection']['evidenceGaps'],[{'targetId':'other','identity':'0'}])
+
+    def test_changed_reply_creates_revision_and_reclassifies(self):
+        self.b['messages'][3].update(text='정정합니다',replyToRef={'targetId':'t','identity':'0'})
+        p=Fake();select_ingest(self.s,self.b,p)
+        self.b['batchId']='reply-change';self.b['messages'][3]['replyToRef']['identity']='1'
+        select_ingest(self.s,self.b,p)
+        revisions=[j for j in self.s.pending() if j['message']['originId']=='3']
+        self.assertEqual(len(revisions),2);self.assertEqual(p.calls,2)
+
+    def test_cycle_in_reply_chain_terminates(self):
+        self.b['messages'][6].update(text='정정합니다',replyToRef={'targetId':'t','identity':'0'})
+        self.b['messages'][0]['replyToRef']={'targetId':'t','identity':'6'}
+        result=select_ingest(self.s,self.b,Fake())
+        self.assertEqual(result['selection']['retained'],2)
+
+    def test_old_policy_boundary_does_not_skip_discarded_evidence(self):
+        self.b.update(stopReason='requested-range-reached',coverageVerified=True)
+        select_ingest(self.s,self.b,Fake())
+        with self.s.db:self.s.db.execute('UPDATE boundary_policies SET version=1')
+        self.assertEqual(self.s.begin('t')['baseline'],'[]')
+
+    def test_earlier_page_gap_blocks_clean_final_page(self):
+        self.b['messages'][6].update(text='정정합니다',replyToRef={'targetId':'t','identity':'missing'})
+        select_ingest(self.s,self.b,Fake())
+        self.b.update(batchId='final-page',messages=[],stopReason='requested-range-reached',coverageVerified=True)
+        with self.assertRaisesRegex(ValueError,'unresolved reply'):
+            select_ingest(self.s,self.b,Fake())
+        self.b['messages']=[{'originId':'missing','text':'original','observedAt':'2026-11-01T01:00:00+00:00'}]
+        result=select_ingest(self.s,self.b,Fake())
+        self.assertTrue(result['complete'])
+        self.assertTrue(any(j['message']['originId']=='missing' for j in self.s.pending()))
+
+    def test_policy_change_in_partial_run_requires_reobservation(self):
+        select_ingest(self.s,self.b,Fake())
+        old=json.loads(self.s.db.execute('SELECT result FROM batches').fetchone()[0])
+        old['selection']['ruleVersion']=1
+        with self.s.db:self.s.db.execute('UPDATE batches SET result=?',(json.dumps(old),))
+        self.b['batchId']='new-policy'
+        p=Fake()
+        with self.assertRaisesRegex(ValueError,'retention policy changed'):
+            select_ingest(self.s,self.b,p)
+        self.assertEqual(p.calls,0)
+        new=self.s.begin('t',restart=True)
+        self.assertNotEqual(new['id'],self.b['runId']);self.assertEqual(new['baseline'],'[]')
+        self.assertEqual(new['cursor'],'{}')

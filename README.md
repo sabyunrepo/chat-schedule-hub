@@ -27,7 +27,7 @@ Codex 플러그인의 `skills/collect-schedules/SKILL.md`를 실행 지침으로
 
 [최종 계획](PLAN.md), [프로젝트 지침](AGENTS.md), [수집 어댑터 계약](docs/SOURCE_ADAPTER_CONTRACT.md)을 기준으로 구현합니다. 새 수집 경로 추가 스킬은 `skills/add-collection-source/`에 있습니다.
 
-현재 합성 데이터 기반 저장 계층 테스트 21개와 웹앱 TypeScript 검사·빌드를 통과했습니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
+현재 합성 데이터 기반 저장 계층 테스트 28개와 웹앱 TypeScript 검사·빌드를 통과했습니다. Decisions API의 합성 일정 분류 실호출도 성공했습니다. 전체 방 최근 30일 수집, 실제 기기 PWA 설치, Codex 플러그인 설치 수용 검증 및 마켓 심사는 완료되지 않았습니다. 개인 Sites 배포는 성공했으며 개인 URL·프로젝트 ID는 공개 설정에 포함하지 않습니다. Decisions는 의도 분류를 담당하며 자유형 일정 추출은 호스트 Codex 단계에서 수행합니다.
 
 공개 저장소와 개인 사이트의 공개 범위는 별개입니다. 샘플은 합성 데이터입니다. 배포 조건과 제3자 라이선스는 [LICENSE.md](LICENSE.md)를 확인하세요.
 
