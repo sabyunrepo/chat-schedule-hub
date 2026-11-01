@@ -30,8 +30,10 @@ description: 모아 일정 허브에 카카오톡 UI, Discord 봇, Gmail·네이
 - replyToRef는 `{targetId,identity}`로 실제 확인한 값만 전달한다. evidenceGaps가 있으면 범위 완료로 선언하지 않는다. 날짜·작성자가 없으면 null, 관찰 시각을 발언/수정 시각으로 꾸미지 않는다.
 - `pending`에서 이미 저장된 decision을 재사용한다. 메일·대화의 Decisions 의도 분류를 일정 추출 완료로 혼동하지 않는다. 근거 revision과 expectedVersion을 사용해 `person`, `apply`로 일정을 반영한다. 불확실하면 검토 필요로 남긴다.
 - Calendar 파일럿은 구조화 입력을 같은 revisions/events/outbox로 반영한다. 사람의 의견·처리완료 기록을 수집으로 덮어쓰지 않는다.
-- `sync`는 설정된 개인 Sites에만 수행한다. 여러 로컬 DB를 잘못 동기화해 기존 일정을 덮어쓰지 않도록 설치 ID·sequence·병합 동작을 먼저 확인한다.
+- `sync`는 [증분 동기화 계약](../../docs/INCREMENTAL_SYNC.md)에 따라 설정된 개인 Sites에만 수행한다. 여러 로컬 DB를 잘못 동기화해 기존 일정을 덮어쓰지 않도록 설치 ID·sequence·병합 동작을 먼저 확인한다.
 
 ## 보고
 
 관찰/제외/보존/신규/변경/중복/공백, 실제 범위, 종료 이유, 모델 호출·지연을 본문 없이 보고한다. 파일럿이 통과해도 미수집 스레드·폴더·페이지가 있으면 전체 완료가 아니다. 새 인증이나 사용자 확인이 필요하면 준비된 구체적 화면과 이유만 안내하고 다른 독립 작업은 계속한다.
+
+Dot 원격 실행 검토와 설정은 [Dot 안내](../../docs/DOT_REMOTE_COLLECTION.md)를 따른다. 실제 로컬 연결을 확인하기 전 원격 수집 완료로 보고하지 않는다.

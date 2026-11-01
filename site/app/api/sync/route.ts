@@ -1,2 +1,12 @@
-import {env} from 'cloudflare:workers';import {json,body,hash} from '../../../lib/http';import {snapshot} from '../../../lib/model';
-export async function POST(r:Request){try{const token=r.headers.get('authorization')?.replace(/^Bearer /,'');if(!token)return json({error:'unauthorized'},401);const pair=await env.DB!.prepare('SELECT owner FROM pairings WHERE hash=?').bind(await hash(token)).first<{owner:string}>();if(!pair)return json({error:'unauthorized'},401);const b=await body(r);const data=snapshot.parse(b);if(!Number.isSafeInteger(b.sequence)||b.sequence<1||typeof b.installationId!=='string')return json({error:'invalid sequence'},400);const old=await env.DB!.prepare('SELECT installation,sequence FROM snapshots WHERE owner=?').bind(pair.owner).first<{installation:string;sequence:number}>();if(old&&old.installation!==b.installationId)return json({error:'installation mismatch'},409);const res=await env.DB!.prepare('INSERT INTO snapshots VALUES(?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET payload=excluded.payload,sequence=excluded.sequence,updated=excluded.updated WHERE snapshots.installation=excluded.installation AND snapshots.sequence<excluded.sequence').bind(pair.owner,b.installationId,b.sequence,JSON.stringify(data),new Date().toISOString()).run();return json({ok:true,changed:!!res.meta.changes});}catch{return json({error:'invalid snapshot'},400)}}
+import {env} from 'cloudflare:workers';
+import {json,body,hash} from '../../../lib/http';
+import {applyDelta} from '../../../lib/sync-records';
+export async function POST(r:Request){
+ try{
+  const token=r.headers.get('authorization')?.replace(/^Bearer /,'');if(!token)return json({error:'unauthorized'},401);
+  const pair=await env.DB!.prepare('SELECT owner FROM pairings WHERE hash=?').bind(await hash(token)).first<{owner:string}>();if(!pair)return json({error:'unauthorized'},401);
+  const b=await body(r);if(b.schemaVersion!==2)return json({error:'delta protocol v2 required; update collector'},409);
+  const result=await applyDelta(pair.owner,b,await hash(JSON.stringify(b)));
+  return json(result,result.conflict?409:200);
+ }catch{return json({error:'invalid delta'},400);}
+}

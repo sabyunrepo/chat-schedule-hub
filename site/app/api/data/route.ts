@@ -1,2 +1,3 @@
-import {env} from 'cloudflare:workers';import {user,json} from '../../../lib/http';
-export async function GET(){try{const uid=await user();const row=await env.DB!.prepare('SELECT payload,updated FROM snapshots WHERE owner=?').bind(uid).first<{payload:string;updated:string}>();return json(row?{data:JSON.parse(row.payload),updated:row.updated}:{data:null});}catch{return json({error:'로그인이 필요합니다.'},401)}}
+import {json,user} from '../../../lib/http';
+import {readData} from '../../../lib/sync-records';
+export async function GET(){try{return json(await readData(await user())||{data:null});}catch{return json({error:'일정을 불러오지 못했습니다.'},401);}}
