@@ -1,3 +1,4 @@
+import {AppUpdater} from "./app-updater";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./refined.css";
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<AppUpdater/></body>
     </html>
   );
 }
