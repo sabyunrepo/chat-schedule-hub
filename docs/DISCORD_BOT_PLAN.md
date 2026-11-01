@@ -1,6 +1,6 @@
 # Discord 봇 수집 전환 계획
 
-상태: 설계 갱신 완료. Aside 로그인과 신규 앱 이름 입력을 확인했고, 사용자가 개발자 약관 동의 및 앱 생성을 승인했고 제출했으나 Discord hCaptcha 사람 확인에서 대기 중. 앱 생성 완료와 application ID는 아직 미확인. 봇 생성·런타임·설치·실제 수집은 아직 미완료.
+상태: 앱 생성과 Message Content Intent 저장 확인. Guild Install 읽기 권한 설정 완료. 사용자가 지정 두 서버 설치 완료를 알렸다. 토큰 연결은 아직 미완료이며 첫 토큰 발급에서 계정 재인증이 요구됐다. API로 설치 검증·런타임·실제 수집은 미완료.
 
 ## 목표와 경계
 
@@ -90,3 +90,11 @@ Codex가 모든 메시지 본문을 다시 읽어 정규화하지 않는다. 코
 ## DB 결정
 
 로컬 SQLite + Sites D1을 유지한다. 별도 외부 DB는 추가하지 않는다. 역할, 현재 한계와 확대 조건은 [DB 설계 결정](DATABASE_DECISION.md)을 따른다.
+
+## 포털 설정 확인
+
+- 개인 설치 비활성화, Guild Install 활성화 및 View Channels/Read Message History 기본 권한 저장 확인.
+- 기본 Guild Install scope에는 applications.commands가 아직 남아 있다. 별도로 생성한 설치용 URL은 bot scope만이며 permissions=66560이다. 기본 scope 정리는 후속 작업이다.
+- OAuth 승인 페이지는 로딩 후 로그인 화면으로 이동했다. 이후 사용자가 공식 bot-only 링크로 두 서버 설치 완료를 알렸다. API 접근 검증은 토큰 연결 후 진행한다.
+- 첫 봇 토큰 발급 제출 후 Discord가 비밀번호 재인증을 요구했다. 토큰 발급·저장·연결 완료를 아직 확인하지 못했다.
+- 사용자 전용 로컬 설정에 앱 ID/허용 서버/30일 범위와 전체 수집 비활성 상태를 저장했다. 실제 ID와 비밀은 공개 문서에 포함하지 않는다.
