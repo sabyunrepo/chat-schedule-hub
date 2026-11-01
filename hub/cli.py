@@ -5,7 +5,7 @@ from .core import Store, REGISTRY
 from .providers import providers
 
 def main():
-    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','select-ingest','kakao-observe','kakao-reviewed','kakao-scan-start','kakao-scan-step','kakao-scan-status','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
+    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','select-ingest','kakao-observe','kakao-reviewed','kakao-buffer','kakao-scan-start','kakao-scan-step','kakao-scan-status','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
     if args.command=='sources': print(json.dumps(list(REGISTRY.adapters.values()),ensure_ascii=False)); return
     path=os.environ.get('HUB_DB',str(Path.home()/'Library/Application Support/ChatScheduleHub/hub.sqlite'))
     store=Store(path); data=json.load(sys.stdin) if args.command not in ['pending','snapshot'] else {}
@@ -13,6 +13,13 @@ def main():
         from .sources.kakao_incremental import KakaoScan
         scan=KakaoScan(store)
         result=scan.status(data['target']) if args.command=='kakao-scan-status' else scan.start(**data)
+    elif args.command=='kakao-buffer':
+        from .sources.kakao_buffer import collect_buffer
+        from .update import update_lock
+        if data.get('externalProcessingAllowed') is not True: raise ValueError('External processing must be enabled')
+        with update_lock(Path(path).parent):
+            result=collect_buffer(store,data['target'],data['label'],data['frames'],data['latest'],data['quiet'],
+                data['since'],data['until'],providers.create(data.get('provider','openai-decisions')))
     elif args.command=='kakao-observe':
         from .sources.kakao_ui import parse_window
         from .sources.kakao_collection import collect, eligibility
