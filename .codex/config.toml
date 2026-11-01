@@ -1,0 +1,6 @@
+# Project-local REA. Start Codex from this project root after runtime installation.
+[mcp_servers.rea]
+command = "bash"
+args = ["scripts/rea-project.sh", "mcp"]
+startup_timeout_sec = 30
+tool_timeout_sec = 180

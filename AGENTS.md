@@ -91,3 +91,9 @@
 - 사용자 요청으로 Gmail·네이버 메일·Google Calendar 읽기 수집을 추가한다. 현재 계획과 구현 순서는 docs/MAIL_CALENDAR_PLAN.md를 따른다.
 - 카카오톡 추가 수집은 현재 분량에서 중단한다. 재개 요청 전에는 추가 순회하지 않는다.
 - Aside 로그인 확인과 OAuth/IMAP 런타임 연결 완료를 구분한다. 메일 발송·일정 수정·참여 응답은 포함하지 않는다.
+
+## 실제 서비스 UI 참조
+
+- 사용자가 REA 분석을 요청하면 `.agents/skills/reverse-engineer-anything/SKILL.md`를 적용한다.
+- 프로젝트 REA 실행·MCP 설정과 관찰 근거는 `docs/REA_CHATGPT_REFERENCE.md`를 따른다. 전역 MCP 설정은 변경하지 않는다.
+- 관찰한 DOM·화면·행동과 자체 설계 선택을 구분한다. 로그인 데이터·원본 캡처는 `.runtime/` 밖에 배포하지 않는다.

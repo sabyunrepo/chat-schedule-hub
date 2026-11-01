@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 MANIFEST='.codex-plugin/plugin.json'
-TOP={'README.md','LICENSE.md','AGENTS.md','PLAN.md','CHANGELOG.md','requirements-discord.txt','requirements-mail.txt'}
+TOP={'.codex/config.toml','README.md','LICENSE.md','AGENTS.md','PLAN.md','CHANGELOG.md','requirements-discord.txt','requirements-mail.txt'}
 DIRS={'.agents','.codex-plugin','skills','hub','docs','scripts','examples','tests','site'}
 
 def build():
