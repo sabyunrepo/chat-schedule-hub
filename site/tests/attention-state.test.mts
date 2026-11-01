@@ -1,0 +1,18 @@
+import {strict as assert} from 'node:assert';
+import {withTracking,actionFor,type ReviewAction} from '../lib/attention-state.ts';
+import type {Event} from '../lib/model.ts';
+import type {Attention} from '../lib/attention.ts';
+const e:Event={id:'event:a',title:'약속',kind:'crime',status:'confirmed',start:'2026-11-10T10:00:00+09:00',end:null,participants:[],evidence:[],version:2};
+const item:Attention={id:'review:'+e.id,revision:'2',type:'review',title:e.title,reason:'확인 필요',events:[e]};
+const a:ReviewAction={id:item.id,revision:'1',state:'acknowledged',comment:'이전 의견',version:1};
+assert.equal(withTracking([item],[e],[a]).length,0,'ack stays hidden across revisions');
+for(const state of ['resolved','dismissed'])assert.equal(withTracking([item],[e],[{...a,state}]).length,0);
+const tracked=withTracking([],[e],[{...a,state:'tracking'}]);
+assert.equal(tracked.length,1,'retain watch after original condition clears');assert.equal(tracked[0].revision,'2');
+assert.equal(withTracking([],[{...e,status:'cancelled',version:3}],[{...a,state:'tracking'}])[0].events[0].status,'cancelled');
+assert.equal(withTracking([],[{...e,excluded:true}],[{...a,state:'tracking'}]).length,0);
+const pair='overlap:'+JSON.stringify([e.id,'b']);assert.equal(withTracking([],[e,{...e,id:'b',version:4}],[{...a,id:pair,state:'tracking'}])[0].revision,'2:4');
+const change={...item,id:'change:'+e.id,type:'change' as const};const legacy={...a,id:'change:'+e.id+':1',state:'resolved'};
+assert.equal(actionFor(change,[legacy]),legacy);assert.equal(withTracking([change],[e],[legacy]).length,0);
+assert.equal(withTracking([item],[e],[]).length,1);
+console.log('Acknowledgement and tracking regression checks passed');

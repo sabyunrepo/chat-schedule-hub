@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {body,hash,json} from '../../../../lib/http';
 import {attention} from '../../../../lib/attention';
+import {withTracking,actionFor,acknowledged,type ReviewAction} from '../../../../lib/attention-state';
 import {readData} from '../../../../lib/sync-records';
 export async function POST(r:Request){try{
  const token=r.headers.get('authorization')?.replace(/^Bearer /,'');if(!token)return json({error:'unauthorized'},401);
@@ -21,12 +22,16 @@ export async function POST(r:Request){try{
  if(!subs.results.length)return json({jobs:[]});
  const stored=await readData(uid),candidates=attention(stored?.data.events??[],stored?.data.people??[],now).filter(x=>x.type==='reminder'||x.type==='overlap');
  const changes=await db.prepare('SELECT id,revision,payload,created FROM event_history WHERE owner=? ORDER BY created DESC LIMIT 100').bind(uid).all<{id:string;revision:string;payload:string;created:string}>();
- const actions=await db.prepare('SELECT id,revision,state FROM review_actions WHERE owner=?').bind(uid).all<{id:string;revision:string;state:string}>();
+ const actions=await db.prepare('SELECT id,revision,state,comment,version,updated FROM review_actions WHERE owner=?').bind(uid).all<ReviewAction>();
+ const seenChanges=new Set<string>();
+ const latestChanges=changes.results.filter(x=>{if(seenChanges.has(x.id))return false;seenChanges.add(x.id);return true});
+ const tracked=withTracking([],stored?.data.events??[],actions.results).filter(i=>actionFor(i,actions.results)?.revision!==i.revision);
  const jobs=[];
  for(const sub of subs.results){
-  const items=[...candidates.map(x=>({...x,created:sub.created})),...changes.results.filter(x=>x.created>=sub.created&&!JSON.parse(x.payload).excluded).map(x=>({id:'change:'+x.id+':'+x.revision,revision:x.revision,type:'change',reason:'일정 변경',created:x.created}))];
+  const items=[...tracked.map(x=>({...x,created:sub.created})),...candidates.map(x=>({...x,created:sub.created})),...latestChanges.filter(x=>x.created>=sub.created&&!JSON.parse(x.payload).excluded).map(x=>({id:'change:'+x.id,revision:x.revision,type:'change',reason:'일정 변경',created:x.created}))];
   for(const item of items){
-   if(actions.results.some(a=>a.id===item.id&&a.revision===item.revision&&a.state!=='open'))continue;
+   const action=actionFor(item as any,actions.results);
+   if(acknowledged(action)||(action?.state==='tracking'&&action.revision===item.revision))continue;
    const id=await hash(JSON.stringify([item.id,item.revision,item.reason])),lease=crypto.randomUUID();
    const claimed=await db.prepare(`INSERT INTO push_deliveries VALUES(?,?,?,'leased',?,?,1) ON CONFLICT(owner,subscription,item) DO UPDATE SET state='leased',lease=excluded.lease,until=excluded.until,attempts=push_deliveries.attempts+1 WHERE push_deliveries.state!='sent' AND push_deliveries.until<? AND push_deliveries.attempts<3`).bind(uid,sub.id,id,lease,now+300000,now).run();
    if(claimed.meta.changes){jobs.push({subscription:sub.id,item:id,lease,info:JSON.parse(sub.payload)});break;}
