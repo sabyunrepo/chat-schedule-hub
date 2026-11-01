@@ -1,0 +1,11 @@
+import {strict as assert} from 'node:assert';
+import {scheduleWindow,seoulDay} from '../lib/schedule-window.ts';
+const now=Date.parse('2026-11-01T15:00:00+09:00');
+const week=scheduleWindow(now,'week');
+assert.equal(seoulDay(week.start.getTime()),'2026-11-01');
+assert.equal(seoulDay(week.end.getTime()),'2026-11-08');
+assert.equal(seoulDay(scheduleWindow(now,'month').end.getTime()),'2026-11-29');
+assert.equal(seoulDay(scheduleWindow(now,'week',1).start.getTime()),'2026-11-08');
+assert.equal(seoulDay(scheduleWindow(now,'week',-1).start.getTime()),'2026-10-25');
+assert.equal(seoulDay(scheduleWindow(Date.parse('2026-11-01T15:01:00Z'),'week').start.getTime()),'2026-11-02');
+console.log('Rolling Seoul schedule window: 6 cases passed');
