@@ -7,6 +7,22 @@ class KakaoAnchorTests(unittest.TestCase):
  def rows(self,*texts):return [{'text':x,'sentAt':None,'authorRef':None} for x in texts]
  def test_first_view_not_verified(self):
   r=self.a.observe('room',self.rows('a','b','c'));self.assertEqual(r['messages'],[])
+ def test_dated_revisit_preserves_keys_after_unrelated_window(self):
+  rows=[{**r,'sentAt':'2026-11-01T10:00:00+09:00'} for r in self.rows('a','b','c','d')]
+  self.a.observe('room',rows);first=self.a.observe('room',rows)
+  self.a.observe('room',self.rows('x','y','z'))
+  revisited=KakaoAnchors(self.s.db).observe('room',rows)
+  self.assertEqual([m['occurrenceKey'] for m in first['messages']], [m['occurrenceKey'] for m in revisited['messages']])
+  self.assertEqual(revisited['matchedRows'],4)
+  self.assertNotIn('2026',str([tuple(r) for r in self.s.db.execute('SELECT * FROM kakao_anchor_history')]))
+ def test_undated_revisit_remains_unconfirmed(self):
+  rows=self.rows('a','b','c');self.a.observe('room',rows);self.a.observe('room',rows)
+  self.a.observe('room',self.rows('x','y','z'))
+  self.assertEqual(self.a.observe('room',rows)['messages'],[])
+ def test_reordered_page_cannot_use_history(self):
+  rows=[{**r,'sentAt':'2026-11-01T10:00:00+09:00'} for r in self.rows('a','b','c','d','e','f')]
+  self.a.observe('room',rows);self.a.observe('room',rows)
+  self.assertEqual(self.a.observe('room',rows[3:]+rows[:3])['messages'],[])
  def test_overlap_preserves_occurrence_and_waits_for_new_rows(self):
   self.a.observe('room',self.rows('a','b','c','d'))
   verified=self.a.observe('room',self.rows('a','b','c','d'))
