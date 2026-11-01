@@ -1,1 +1,1 @@
-{"name":"chat-schedule-hub","version":"0.1.0","description":"카톡·Discord 대화를 증분 수집하고 사람별 일정과 크라임씬 모임을 정리합니다.","skills":"./skills/","requires_local_executor":true}
+{"name":"chat-schedule-hub","version":"0.1.1","description":"카톡·Discord 대화를 증분 수집하고 사람별 일정과 크라임씬 모임을 정리합니다.","skills":"./skills/","requires_local_executor":true}

@@ -5,6 +5,8 @@ description: 카카오톡 Mac 앱과 Discord의 지정 대화를 컴퓨터 유�
 
 # 일정 수집
 
+카카오톡 UI 실패·재개는 [복구 절차](../../docs/KAKAO_UI_RECOVERY.md)를 따른다. 한 명만 GUI를 조작하고, 접근성 스크롤 실패 시 현재 스크린샷으로 확인한 좌표 경로를 사용한다. 성공 응답만으로 수집 성공을 선언하지 않는다. 조용한 채팅방 보관함과 최근 30일 비활동 방을 모두 제외한다. 두 실제 전체 AX 관찰은 `kakao-observe`로 전달할 수 있다.
+
 플러그인 루트에서 `python3 -m hub.cli <command>`를 실행한다. JSON 입력은 stdin으로 전달한다. `HUB_DB` 미지정 시 사용자 앱 데이터 폴더를 사용한다. 비밀값은 인수나 로그로 전달하지 않는다.
 
 1. `sources`로 지원 경로를 확인한다. 호스트가 제공하는 컴퓨터 유즈 도구 문서를 먼저 읽고, 없으면 `driver_unavailable`로 보고한다. 내부 엔드포인트나 Orca로 임의 대체하지 않는다.
@@ -40,4 +42,4 @@ sourceLocator, editedAt, provenance, timestampPrecision, threadRef와 replyToRef
 
 ## Discord 정식 봇 전환
 
-사용자가 봇 수집으로 전환했다. Discord 웹 수동 순회를 전체로 확대하지 않는다. discord-bot은 제한 REST 파일럿으로 등록되어 있다. `python3 -m hub.sources.discord_bot probe`로 연결을 확인하고 `pilot --guild GUILD_ID --channel CHANNEL_ID --allow-external-processing`으로 한 페이지를 선별한다. Gateway 상시 수집과 자동 전체 이력 순회는 미구현이다. 상세는 docs/DISCORD_BOT_PLAN.md와 docs/sources/discord-bot.md를 따른다. 카톡은 기존 UI 경로를 유지한다. 불확실 분류는 관련성 점수가 낮아도 보관하며 선택 규칙 버전은 6이다.
+사용자가 봇 수집으로 전환했다. Discord 웹 수동 순회를 전체로 확대하지 않는다. discord-bot Gateway 상시 감시는 구현했다. 과거 30일 전체 이력은 미완료다. 상세는 docs/CONTINUOUS_COLLECTION.md와 docs/sources/discord-bot.md를 따른다. 카톡은 호스트 UI 경로를 유지한다. 불확실 분류는 관련성 점수가 낮아도 보관하며 선택 규칙 버전은 6이다.

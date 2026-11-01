@@ -1,8 +1,7 @@
 """Private room policy and bounded host-observation ingestion for Kakao UI."""
-import json
 import uuid
 from datetime import datetime
-from ..core import Store, now, require
+from ..core import now, require
 from ..selection import select_ingest
 from .kakao_anchors import KakaoAnchors
 
@@ -43,5 +42,7 @@ def collect(store, target, label, observations, latest, quiet, since, until, pro
         results.append(select_ingest(store,batch,provider,
             'Kakao recruitment room: a recruitment card may be cancelled or deleted because recruitment is complete. '
             'Do not infer the actual gathering is cancelled. Display names are not verified account IDs.'))
+    with store.db:
+        store.db.execute('UPDATE kakao_rooms SET state=?,updated=? WHERE target=?',('partial',now(),target))
     return {'state':'partial','matched':matched['matchedRows'],'unconfirmed':matched['unconfirmed'],
             'undatedOrOutsideRange':len(matched['messages'])-len(rows),'batches':results,'coverageVerified':False}

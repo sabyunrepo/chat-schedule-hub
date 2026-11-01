@@ -5,11 +5,21 @@ from .core import Store, REGISTRY
 from .providers import providers
 
 def main():
-    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','select-ingest','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
+    parser=argparse.ArgumentParser(); parser.add_argument('command',choices=['sources','register','begin','ingest','select-ingest','kakao-observe','pending','decide','person','apply','snapshot','sync']); args=parser.parse_args()
     if args.command=='sources': print(json.dumps(list(REGISTRY.adapters.values()),ensure_ascii=False)); return
     path=os.environ.get('HUB_DB',str(Path.home()/'Library/Application Support/ChatScheduleHub/hub.sqlite'))
     store=Store(path); data=json.load(sys.stdin) if args.command not in ['pending','snapshot'] else {}
-    if args.command=='register': store.register_target(**data); result={'registered':data['target']}
+    if args.command=='kakao-observe':
+        from .sources.kakao_ui import parse_window
+        from .sources.kakao_collection import collect, eligibility
+        if data.get('externalProcessingAllowed') is not True: raise ValueError('External processing must be enabled')
+        state=eligibility(data.get('quiet'),data.get('latest'),data['since'])
+        if state!='eligible': result={'state':state,'apiCalls':0}
+        else:
+            windows=[parse_window(x) for x in data['observations']]
+            if len(windows)!=2 or any(x['title']!=data['label'] for x in windows): raise ValueError('observed room mismatch')
+            result=collect(store,data['target'],data['label'],[x['rows'] for x in windows],data['latest'],data['quiet'],data['since'],data['until'],providers.create(data.get('provider','openai-decisions')))
+    elif args.command=='register': store.register_target(**data); result={'registered':data['target']}
     elif args.command=='begin': result=store.begin(data['target'],restart=data.get('restart') is True)
     elif args.command=='ingest': result=store.ingest(data)
     elif args.command=='select-ingest':
